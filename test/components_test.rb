@@ -116,7 +116,7 @@ test 'input emits submit on enter and moves the cursor' do
   assert_equal 'c', field.value
 end
 
-test 'input shows a placeholder when empty and unfocused' do
+test 'input shows a placeholder, focused or not' do
   field = TUI::Input.new(placeholder: 'name', padding: 0)
   stack = TUI::Layout::Stack.new(direction: :vertical)
   button = TUI::Button.new('focus me')
@@ -128,8 +128,16 @@ test 'input shows a placeholder when empty and unfocused' do
 
   app = TUI::App.new(stack, out: CountingIO.new, size: [20, 2])
   app.focus(field)
-  focused = app.render_frame.lines.map { |line| plain(line) }
-  refute focused[1].include?('name'), 'a focused field draws its cursor instead'
+  canvas = app.render_frame
+  assert_includes plain(canvas.row(1)), 'name',
+                  'the placeholder stays readable under the cursor'
+  assert_includes canvas.row(1), TUI::Style.resolve(:cursor)
+end
+
+test 'the cursor is neutral: reverse video, not a coloured block' do
+  cursor = TUI::Style.resolve(:cursor)
+  assert cursor.include?('7'), "reverse video expected in #{cursor.inspect}"
+  refute cursor.include?('48;5;'), "no background colour in #{cursor.inspect}"
 end
 
 test 'input scrolls long values so the cursor stays visible' do

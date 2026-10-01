@@ -55,7 +55,9 @@ module TUI
 
       selection:     { fg: PALETTE[:sel_fg], bg: PALETTE[:sel_bg], bold: true },
       selection_dim: { fg: PALETTE[:dim], bg: PALETTE[:sel_bg] },
-      cursor:        { fg: PALETTE[:bg], bg: PALETTE[:accent], bold: true },
+      # A cursor is a "here" marker, not a highlight: reverse video stays
+      # neutral on any palette (and never fights the accent colour).
+      cursor:        { reverse: true, bold: true },
 
       tab_active:    { fg: PALETTE[:accent], bold: true },
       tab_inactive:  { fg: PALETTE[:dim] },

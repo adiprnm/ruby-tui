@@ -53,7 +53,7 @@ module TUI
       canvas.fill(area.x, area.y, area.w, area.h, ' ', @style) if focused?
 
       text = display_text
-      if text.empty? && @placeholder
+      if empty_with_placeholder?
         canvas.text(area, @placeholder, @placeholder_style)
       else
         # Canvas#text would add an ellipsis; a scrolled field shows the
@@ -116,8 +116,20 @@ module TUI
       cell = cursor_cell - @scroll
       return if cell.negative? || cell >= area.w
 
-      char = @password ? '*' : @buffer.current_line[@buffer.col]
+      # The cursor replaces the cell it sits on: take the character that is
+      # displayed there, so a placeholder does not lose its first letter.
+      char = if @password
+               '*'
+             elsif empty_with_placeholder?
+               @placeholder[cell - @scroll] || ' '
+             else
+               @buffer.current_line[@buffer.col]
+             end
       canvas.put(area.x + cell, area.y, char && !char.empty? ? char : ' ', @cursor_style)
+    end
+
+    def empty_with_placeholder?
+      @buffer.empty? && !@placeholder.nil?
     end
   end
 end
