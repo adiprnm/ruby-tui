@@ -82,6 +82,18 @@ module TUI
         child.measure(max_w, max_h)
       end
 
+      # Size of an auto child along the main axis. The constraints have to
+      # be handed over the right way round: a child in a horizontal stack is
+      # measured with the width it may use, not with the stack's height.
+      def measure_in(child, spec, cross, main)
+        return nil unless spec == Units::AUTO
+
+        max_w = horizontal? ? main : cross
+        max_h = horizontal? ? cross : main
+        mw, mh = child.measure(max_w, max_h)
+        horizontal? ? mw : mh
+      end
+
       def child_rect(rect, cursor, size)
         if horizontal?
           Rect.new(rect.x + cursor, rect.y, size, rect.h)
@@ -100,10 +112,7 @@ module TUI
 
         specs = @children.map do |child|
           spec = spec_for(child)
-          measured = if spec == Units::AUTO || spec == TUI.auto
-                       mw, mh = child.measure(cross, avail)
-                       horizontal? ? mw : mh
-                     end
+          measured = measure_in(child, spec, cross, avail)
           [spec, measured]
         end
 

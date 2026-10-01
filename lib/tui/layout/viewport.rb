@@ -32,12 +32,20 @@ module TUI
       def scroll_by(dy, dx = 0)
         @offset_y += dy
         @offset_x += dx
+        clamp! if @content_size[0].positive? || @content_size[1].positive?
         self
       end
 
       def scroll_to(offset_y)
         @offset_y = offset_y
         self
+      end
+
+      def measure(max_w, max_h)
+        return [max_w, max_h] unless content
+
+        mw, mh = content.measure(max_w, 1 << 16)
+        [[mw, max_w].min, [mh, max_h].min]
       end
 
       def layout(rect)

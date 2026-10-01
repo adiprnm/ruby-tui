@@ -1,0 +1,60 @@
+# frozen_string_literal: true
+require_relative 'test_helper'
+
+puts 'Term -- width and keys'
+
+test 'cell widths cover ASCII, CJK, emoji and marks' do
+  assert_equal 1, TUI::Term.width('a')
+  assert_equal 1, TUI::Term.width('─')
+  assert_equal 2, TUI::Term.width('日')
+  assert_equal 2, TUI::Term.width('😀')
+  assert_equal 0, TUI::Term.codepoint_width(0x0301)
+end
+
+test 'escape sequences map to key names' do
+  sequences = TUI::Term::SEQUENCES
+  assert_equal :up, sequences["\e[A"]
+  assert_equal :down, sequences["\e[B"]
+  assert_equal :page_down, sequences["\e[6~"]
+  assert_equal :backtab, sequences["\e[Z"]
+  assert_equal :delete, sequences["\e[3~"]
+end
+
+test 'function keys are understood in both usual encodings' do
+  sequences = TUI::Term::SEQUENCES
+  assert_equal :f1, sequences["\eOP"]
+  assert_equal :f2, sequences["\eOQ"]
+  assert_equal :f2, sequences["\e[12~"]
+  assert_equal :f12, sequences["\e[24~"]
+end
+
+test 'key objects know about printable characters and modifiers' do
+  space = TUI::Key.printable(' ')
+  assert space.space?
+  assert space.printable?
+  assert_equal ' ', space.name
+
+  ctrl = TUI::Key.new(:ctrl_c)
+  refute ctrl.printable?
+  assert ctrl.ctrl?('c')
+  refute ctrl.ctrl?('d')
+  assert_equal :ctrl_c, ctrl.name
+end
+
+test 'keys compare by name so bindings are hashable' do
+  assert_equal TUI::Key.new(:enter), TUI::Key.new(:enter)
+  assert_equal TUI::Key.printable('q').hash, TUI::Key.printable('q').hash
+end
+
+test 'the terminal size falls back to COLUMNS and LINES' do
+  old = [ENV['COLUMNS'], ENV['LINES']]
+  ENV['COLUMNS'] = '123'
+  ENV['LINES'] = '45'
+  assert_equal [123, 45], TUI::Term.size
+
+  ENV['COLUMNS'] = '0'
+  ENV['LINES'] = '-3'
+  assert_equal [80, 24], TUI::Term.size
+ensure
+  ENV['COLUMNS'], ENV['LINES'] = old
+end

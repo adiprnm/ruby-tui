@@ -32,6 +32,7 @@ require_relative 'tui/layout/stack'
 require_relative 'tui/layout/box'
 require_relative 'tui/layout/center'
 require_relative 'tui/layout/viewport'
+require_relative 'tui/layout/overlay'
 require_relative 'tui/layout/spacer'
 
 require_relative 'tui/components/label'

@@ -76,23 +76,32 @@ module TUI
       self
     end
 
+    # One slot per option: "(x) name" plus a two cell gap.
+    def slot_width(option)
+      Text.width(option) + 6
+    end
+
     def measure(max_w, max_h)
-      widths = @options.map { |o| Text.width(o) + 4 }
+      widths = @options.map { |option| slot_width(option) }
       if @orientation == :horizontal
         [[widths.sum, max_w].min, 1]
       else
-        [[widths.max.to_i, max_w].min, [@options.length, max_h].min]
+        [[widths.max.to_i - 2, max_w].min, [@options.length, max_h].min]
       end
     end
 
     def render(canvas)
+      offset = 0
       @options.each_with_index do |option, index|
         rect = if @orientation == :horizontal
-                 Rect.new(@rect.x + (index * (Text.width(option) + 4)), @rect.y, @rect.w, 1)
+                 slot = slot_width(option)
+                 r = Rect.new(@rect.x + offset, @rect.y, slot - 2, 1)
+                 offset += slot
+                 r
                else
                  Rect.new(@rect.x, @rect.y + index, @rect.w, 1)
                end
-        break if rect.y > @rect.bottom || rect.x > @rect.right
+        break if rect.y > @rect.bottom || rect.right > @rect.right
 
         mark = index == @selected ? '(•)' : '( )'
         style = focused? && index == @selected ? @focus_style : @style

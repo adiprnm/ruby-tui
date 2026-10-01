@@ -43,6 +43,13 @@ module TUI
       @children.delete(child)
     end
 
+    # Drop every child (the children are detached, so they can be re-used).
+    def clear_children
+      @children.each(&:detach)
+      @children.clear
+      self
+    end
+
     def attach(parent)
       @parent = parent
       mount(parent.app) if parent.app

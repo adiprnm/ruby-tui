@@ -156,9 +156,9 @@ module TUI
     end
 
     def dispatch(key)
-      # a component that got hidden (a switched pane, say) must not keep
-      # swallowing keys
-      focus_first if @focused && !@focused.visible?
+      # A component that is no longer reachable -- hidden by a pane switch,
+      # covered by a modal overlay -- must not keep swallowing keys.
+      focus_first unless reachable?(@focused)
 
       target = @focused
       return if target && target.handle_key(key)
@@ -180,6 +180,12 @@ module TUI
         timer[:at] = now
         timer[:block].call
       end
+    end
+
+    def reachable?(component)
+      return false if component.nil?
+
+      focusables.include?(component)
     end
 
     def normalize(binding)

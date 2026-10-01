@@ -146,8 +146,12 @@ module TUI
     end
 
     def measure(max_w, max_h)
-      height = @fields.sum { |field| rows_for(field) } + (@gap * [@fields.length - 1, 0].max)
-      [max_w, [height, max_h].min]
+      height = @fields.sum { |field| rows_for(field) } +
+               (@gap * [@fields.length - 1, 0].max)
+      width = @fields.reject(&:button?).map do |field|
+        @label_width + 1 + [field.editor.measure(max_w, 1).first, 0].max
+      end.max.to_i
+      [[width, max_w].min, [height, max_h].min]
     end
 
     def layout(rect)

@@ -2,9 +2,73 @@
 
 A small toolkit for building interactive terminal applications in plain
 Ruby: **no curses, no gems, no native extensions**. It ships a component
-model, a layout engine, focus handling and a widget library, plus an example
-application (`rtop`, a system monitor) built entirely out of the generic
-components.
+model, a layout engine, focus handling and a widget library, plus two
+example applications built entirely out of the generic components: `rtop`
+(a system monitor) and `kasir` (a cashier till).
+
+`rtop`:
+
+```
+╭  rtop  ───────────────────  ↑↓ view · 1-3 jump · ? help · q quit  ───────────────────────────╮
+│▌ ◈  Dashboard      ╭ CPU ────────────────────────────────────────────────── 12 cores   9.8% ╮│
+│  ▤  Processes      │                                                                        ││
+│  ?  Help           │                                                                        ││
+│                    │········································································││
+│                    │                                                                        ││
+│                    │                                                                        ││
+│                    │········································································││
+│                    │                                                                        ││
+│                    │········································································││
+│                    │                                                                     ▅  ││
+│                    │                                                                     █▂▁││
+│                    │                                                                     ███││
+│                    ╰────────────────────────────────────────────────────────────────────────╯│
+│                    ╭ Memory ─────────────── 65.0% full ╮╭ System ────────────── laptopsiadi ╮│
+│                    │MEM ████████████░░░░░░░ 9.8G/15.0G ││uptime  15d 04:20                  ││
+│                    │SWP ██░░░░░░░░░░░░░░░░░ 3.7G/30.0G ││load    1.71 1.29 0.91             ││
+│                    │available 5.3G  (35.0%)            ││procs   459  ·  cpu 12x            ││
+│                    ╰───────────────────────────────────╯╰───────────────────────────────────╯│
+│                    ╭ Top processes ───────────────────────────────────────────────── by cpu ╮│
+│╭ System ──────────╮│     PID COMMAND                                        %CPU ▼      MEM ││
+││load          1.71││────────────────────────────────────────────────────────────────────────││
+││procs          459││  696824 nvim                                              3.6    75.0M│││
+││uptime   15d 04:20││ 1520531 claude                                            3.6     242M│││
+││mem            65%││ 1547047 claude                                            3.6     250M┃││
+││████████████░░░░░░││ 3448784 chromium                                          3.6    26.1M┃││
+│╰──────────────────╯╰────────────────────────────────────────────────────────────────────────╯│
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+`kasir`, mid-payment — the dialog is a modal `Layout::Overlay`:
+
+```
+╭  kasir  ──────────────  enter bayar · tab pindah · esc batal  ───────────────────────╮
+│Cari  nama atau kode…  (•) Semua  ( ) Makanan  ( ) Minuman  ( ) Sembako  ( ) Lainnya  │
+│╭ Produk ─────────────────────────── 20 barang ╮╭ Keranjang ───────────────── 9 item ╮│
+││KODE    BARANG                HARGA  KATEGORI ││BARANG   QTY       HARGA      JUMLAH││
+││──────────────────────────────────────────────││────────────────────────────────────││
+││MKN-01  Indomie Goreng     Rp 3.500   Makanan┃││Indomi…    1    Rp 3.500    Rp 3.500││
+││MKN-02  Mie Sedaap Soto    Rp 3.200   Makanan┃││Gula P…    6   Rp 17.000   Rp 96.900││
+││MKN-03  Biskuit Roma K…    Rp 8.500   Makanan┃││Teh Pu…    1    Rp 5.000    Rp 5.000││
+││MKN-04  Chitato Sapi P…    Rp 9.000   Makanan┃││Sabun …    1    Rp 4.500    Rp 4.500││
+││MKN-05  Roti Tawar ╭ Pembayaran ───────────────────────────────╮                    ││
+││MNM-01  Aqua 600ml │             Total  Rp 121.989             │                    ││
+││MNM-02  Teh Pucuk H│                                           │                    ││
+││MNM-03  Kopi Kapal │     Tunai  150000                         │                    ││
+││MNM-04  Susu UHT Co│    Metode (•) Tunai  ( ) QRIS  ( ) Kartu  │                    ││
+││MNM-05  Pocari Swea│                 [ Bayar ]                 │                    ││
+││SBK-01  Beras Panda│            kembalian Rp 28.011            │                    ││
+││SBK-02  Minyak Gore╰───────────────────────────────────────────╯                    ││
+│╰──────────────────────────────────────────────╯╰────────────────────────────────────╯│
+│╭ Pembayaran ───────────────────────────────────────────────────────────── TOKO RUBY ╮│
+││Subtotal                                       Rp 115.000          TOTAL  Rp 121.989││
+││Diskon                                          -Rp 5.100 Siap.                     ││
+││PPN 11%                                         Rp 12.089       [ Bayar (F2) ]      ││
+││                                                                                    ││
+││                                                                                    ││
+│╰────────────────────────────────────────────────────────────────────────────────────╯│
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+```
 
 ```
 ╭  rtop  ───────────────────  ↑↓ view · 1-3 jump · ? help · q quit  ───────────────────────────╮
@@ -124,6 +188,7 @@ root.add(columns)
 | `Layout::Box` | border + title + footer + padding around one child; the border lights up while the child has focus |
 | `Layout::Center` | child at its preferred size, centred |
 | `Layout::Viewport` | scrollable window over larger content (`scroll_by`) |
+| `Layout::Overlay` | a base component plus a centred modal; while it is up only the modal can take focus |
 | `Layout::Spacer` / `Divider` | empty space / a rule |
 
 Size specs are `TUI.fixed(n)`, `TUI.flex(weight)`, `TUI.percent(0.42)`,
@@ -232,13 +297,36 @@ time.
   `IO#getch`: on Ruby 2.6 `getch` re-toggles the terminal mode on every call
   and drops roughly every other keystroke (there is a pty regression test).
 
-## The example: `rtop`
+## Examples
 
-`examples/rtop/` is a complete application written with the toolkit: the
+### `kasir` — a cashier till
+
+`examples/kasir/` is a second application, and the quickest way to see the
+toolkit used for something that is not a dashboard: a searchable product
+`Table`, a cart `Table`, a totals panel, and a modal payment dialog that
+turns into a receipt.
+
+```sh
+ruby bin/kasir                                    # interactive
+ruby bin/kasir --snapshot --state=pay --w=96 --h=28
+```
+
+Its arithmetic lives in `examples/kasir/catalog.rb` with no TUI in sight
+(products, cart, bulk discount, PPN, receipts), so it is tested directly —
+the layout and the money are separate concerns.
+
+Keys: `tab` moves the focus, `enter` adds the highlighted product to the
+cart, `+`/`-` change the quantity of the highlighted cart line, `d` drops
+it, `f2` (or `p`) opens the payment dialog, `esc` cancels (payment) or
+starts a new order (receipt), and `q` (or `ctrl-c`, which works even while
+typing) quits.
+
+### `rtop` — a system monitor
+
+`examples/rtop/` reads `/proc` directly and draws nothing by hand: the
 dashboard is a `BarChart` and two `ProgressBar`s, the process view is a
 sortable `Table`, the sidebar is a vertical `TabBar` next to a `Panes`
-container, and everything is wrapped in a `Box`. It reads `/proc` directly
-and draws nothing by hand.
+container, and everything is wrapped in a `Box`.
 
 ```sh
 ruby bin/rtop                                    # interactive
@@ -283,8 +371,9 @@ lib/tui/
                             RadioGroup, List, Table, TabBar, Panes, Tabs,
                             Form, ProgressBar, Sparkline, BarChart
 examples/hello.rb           a form in 40 lines
-examples/rtop/              the example application (sysdata, sampler, app)
-bin/rtop                    run the example without a load-path dance
+examples/kasir/             the cashier till (catalog, app, main)
+examples/rtop/              the system monitor (sysdata, sampler, app)
+bin/kasir  bin/rtop         run the examples without a load-path dance
 test/                       the test suite
 ```
 
@@ -294,9 +383,11 @@ test/                       the test suite
 ruby test/run.rb
 ```
 
-The suite runs on a ~90-line homegrown harness (stdlib only): geometry and
+155 tests run on a ~90-line homegrown harness (stdlib only): geometry and
 size distribution, canvas drawing/clipping/wide characters/row composition,
-the differential writer (asserting byte counts), every container, every
-component, focus traversal and key dispatch, layout invariants at five
-terminal sizes, and an end-to-end pty session that drives `bin/rtop` and
-asserts the terminal is restored.
+the differential writer (asserting byte counts), every container (including
+modals), every component, focus traversal and key dispatch, key parsing,
+layout invariants at several terminal sizes, the cashier's cart arithmetic
+and receipt formatting, and two end-to-end pty sessions (\(bin/rtop\) and a
+complete sale typed through \(bin/kasir\)) that assert the terminal is
+restored.

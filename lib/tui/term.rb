@@ -36,6 +36,11 @@ module TUI
       "\e[2~" => :insert, "\e[3~" => :delete,
       "\e[5~" => :page_up, "\e[6~" => :page_down,
       "\e[Z" => :backtab,
+      # function keys, both the xterm (ESC O x) and console (ESC [ nn~) forms
+      "\eOP" => :f1, "\eOQ" => :f2, "\eOR" => :f3, "\eOS" => :f4,
+      "\e[11~" => :f1, "\e[12~" => :f2, "\e[13~" => :f3, "\e[14~" => :f4,
+      "\e[15~" => :f5, "\e[17~" => :f6, "\e[18~" => :f7, "\e[19~" => :f8,
+      "\e[20~" => :f9, "\e[21~" => :f10, "\e[23~" => :f11, "\e[24~" => :f12,
       "OA" => :up, "OB" => :down, "OC" => :right, "OD" => :left,
       "OH" => :home, "OF" => :end
     }.freeze

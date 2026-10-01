@@ -155,9 +155,33 @@ module TUI
       put(rect.x, rect.bottom, '╰', style)
       put(rect.right, rect.bottom, '╯', style)
 
-      border_label(rect, title, title_style, :left) if title
-      border_label(rect, title_right, title_right_style, :right) if title_right
-      border_label(rect, footer, footer_style, footer_align) if footer
+      # Titles win over the footer: a centred hint must not run into them.
+      title_w = 0
+      if title
+        border_label(rect, title, title_style, :left)
+        title_w = Text.width(title) + 2
+      end
+
+      right_w = 0
+      if title_right
+        tw = Text.width(title_right) + 2
+        if rect.w - 2 - tw >= title_w + 2
+          border_label(rect, title_right, title_right_style, :right)
+          right_w = tw
+        end
+      end
+
+      if footer
+        fw = Text.width(footer) + 2
+        left_edge = rect.x + 2 + title_w
+        right_edge = rect.right - right_w - 1
+        fx = case footer_align
+             when :center then rect.x + ((rect.w - fw) / 2)
+             when :right  then rect.right - fw
+             else rect.x + 1
+             end
+        border_label(rect, footer, footer_style, footer_align) if fx >= left_edge && fx + fw <= right_edge
+      end
       self
     end
 

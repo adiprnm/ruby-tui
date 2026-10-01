@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# Run the cashier example: ruby bin/kasir [--snapshot] [--state=pay]
+
+require_relative '../examples/kasir/main'
+
+Kasir::CLI.run(ARGV)

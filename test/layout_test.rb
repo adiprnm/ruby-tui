@@ -162,3 +162,73 @@ test 'scrolling is clamped to the content' do
   render_lines(viewport, 20, 4)
   assert_equal 0, viewport.offset_y, 'content fits, so there is nothing to scroll'
 end
+
+puts 'Layout::Overlay'
+
+test 'an overlay draws the base and keeps the modal hidden until shown' do
+  base = TUI::Label.new('base view')
+  modal = TUI::Label.new('dialog')
+  overlay = TUI::Layout::Overlay.new(base, modal)
+  overlay.hide
+
+  assert_includes render_text(overlay, 30, 5), 'base view'
+  refute render_text(overlay, 30, 5).include?('dialog')
+end
+
+test 'showing a modal centres it over the base' do
+  base = TUI::Label.new('base view')
+  modal = TUI::Label.new('dialog')
+  overlay = TUI::Layout::Overlay.new(base, modal)
+  overlay.show
+
+  text = render_text(overlay, 30, 5)
+  assert_includes text, 'dialog'
+
+  lines = render_lines(overlay, 30, 5)
+  row = lines.index { |line| line.include?('dialog') }
+  assert_equal 2, row, 'the dialog sits in the middle row'
+end
+
+test 'the modal is opaque: the base does not show through' do
+  base = TUI::Label.new('X' * 30)
+  modal = TUI::Label.new('dialog')
+  overlay = TUI::Layout::Overlay.new(base, modal)
+  overlay.show
+
+  lines = render_lines(overlay, 30, 5)
+  row = lines.find { |line| line.include?('dialog') }
+  assert_includes row, 'dialog'
+  refute row.include?('X'), 'the modal blanks the cells underneath it'
+
+  # and it is centred: modal width is at least 20, so it starts at (30-20)/2
+  assert_equal 5, modal.rect.x
+  assert_equal 2, modal.rect.y
+end
+
+test 'only the modal is focusable while it is up' do
+  base_button = TUI::Button.new('base')
+  modal_button = TUI::Button.new('dialog')
+  overlay = TUI::Layout::Overlay.new(base_button, modal_button)
+
+  assert_equal [base_button], overlay.focusables
+  overlay.show
+  assert_equal [modal_button], overlay.focusables
+  overlay.hide
+  assert_equal [base_button], overlay.focusables
+end
+
+test 'hiding a modal brings its components back' do
+  base = TUI::Button.new('base')
+  modal = TUI::Button.new('dialog')
+  overlay = TUI::Layout::Overlay.new(base, modal)
+
+  app = TUI::App.new(overlay, out: CountingIO.new, size: [30, 5])
+  app.focus(base)
+  overlay.show
+  app.send(:dispatch, TUI::Key.new(:down))
+  assert app.focused.equal?(modal), 'focus moves into the modal'
+
+  overlay.hide
+  app.send(:dispatch, TUI::Key.new(:down))
+  assert app.focused.equal?(base), 'and back to the base afterwards'
+end
