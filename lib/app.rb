@@ -18,9 +18,9 @@ class App
   HISTORY     = 512
 
   MENU = [
-    { id: :dash,  key: '1', glyph: '◈', label: 'Dashboard', hint: 'overview' },
-    { id: :procs, key: '2', glyph: '▤', label: 'Processes', hint: 'top' },
-    { id: :help,  key: '3', glyph: '?', label: 'Help',      hint: 'keys' }
+    { id: :dash,  key: '1', glyph: '◈', label: 'Dashboard' },
+    { id: :procs, key: '2', glyph: '▤', label: 'Processes' },
+    { id: :help,  key: '3', glyph: '?', label: 'Help' }
   ].freeze
 
   attr_reader :view
@@ -47,7 +47,6 @@ class App
 
     @last_cpu_sample  = 0.0
     @last_proc_sample = 0.0
-    @started          = Time.now
     @boot             = SysData.uptime
   end
 
@@ -217,11 +216,10 @@ class App
     w = @screen.w
     h = @screen.h
 
-    chrome(f, w, h)
-
     if w < 56 || h < 14
-      Widgets.center(f, 0, h / 2, w, "terminal too small: #{w}x#{h} (need 56x14)", :warn)
+      draw_too_small(f, w, h)
     else
+      chrome(f, w, h)
       case @view
       when :dash  then draw_dashboard(f, w, h)
       when :procs then draw_processes(f, w, h)
@@ -230,6 +228,15 @@ class App
     end
 
     f
+  end
+
+  def draw_too_small(f, w, h)
+    Widgets.box(f, 0, 0, w, h, :border)
+    return if w < 16 || h < 5
+
+    Widgets.border_label(f, 1, 0, w - 2, 'rtop', :accent, :left)
+    Widgets.center(f, 1, (h / 2) - 1, w - 2, 'window too small', :warn)
+    Widgets.center(f, 1, h / 2, w - 2, "#{w}x#{h}, need 56x14", :dim)
   end
 
   def set_view(view)
@@ -280,9 +287,11 @@ class App
         f.fill(1, y, SIDEBAR_W - 1, 1, ' ', :sel)
         f.put(1, y, '▌', :focus)
         f.put(3, y, "#{item[:glyph]}  #{item[:label]}", :sel)
+        Widgets.right(f, 1, y, SIDEBAR_W - 2, "#{item[:key]} ", :sel_dim)
       else
         f.put(1, y, '▌', active ? :focus : :border)
         f.put(3, y, "#{item[:glyph]}  #{item[:label]}", active ? :accent : :dim)
+        Widgets.right(f, 1, y, SIDEBAR_W - 2, "#{item[:key]} ", :muted)
       end
     end
 
@@ -304,32 +313,47 @@ class App
 
   # --- dashboard --------------------------------------------------------
 
+  # Panel heights: title border + content + bottom border.
+  MEM_H = 5   # title, mem, swap, available, border
+  SYS_H = 6   # title, uptime, load, procs, mem, border
+
   def draw_dashboard(f, w, h)
     cx = CONTENT_X
     cw = w - CONTENT_X - 2
     cy = 1
     ch = h - 2
 
+    # Below the CPU chart sits either two panels side by side (wide) or the
+    # same two stacked (narrow). Shrink or drop them when there is no room
+    # left -- never draw past the bottom border.
+    stacked = cw < 56
+    lower_h = stacked ? MEM_H + SYS_H : SYS_H
+    if stacked && ch - lower_h < 5
+      lower_h = MEM_H
+    end
+    lower_h = 0 if ch - lower_h < 5
+
     cpu_h = [(ch * 0.45).round, 16].min
-    cpu_h = [cpu_h, ch - 6].min
-    cpu_h = [cpu_h, 5].max
+    cpu_h = [cpu_h, ch - lower_h].min
+    cpu_h = [cpu_h, 4].max
 
     panel(f, cx, cy, cw, cpu_h, 'CPU',
           right: "#{@cpu_n} cores   #{pct(@cpu)}")
     Widgets.bars(f, cx + 1, cy + 1, cw - 2, cpu_h - 2, @cpu_hist)
 
     lower_y = cy + cpu_h
-
-    if cw >= 56
-      half = (cw - 1) / 2
-      draw_memory_panel(f, cx, lower_y, half, 6)
-      draw_system_panel(f, cx + half + 1, lower_y, cw - half - 1, 6)
-    else
-      draw_memory_panel(f, cx, lower_y, cw, 5)
-      draw_system_panel(f, cx, lower_y + 5, cw, 5)
+    if lower_h.positive?
+      if stacked
+        draw_memory_panel(f, cx, lower_y, cw, MEM_H)
+        draw_system_panel(f, cx, lower_y + MEM_H, cw, SYS_H) if lower_h > MEM_H
+      else
+        half = (cw - 1) / 2
+        draw_memory_panel(f, cx, lower_y, half, SYS_H)
+        draw_system_panel(f, cx + half + 1, lower_y, cw - half - 1, SYS_H)
+      end
     end
 
-    list_y = lower_y + (cw >= 56 ? 6 : 10)
+    list_y = cy + cpu_h + lower_h
     list_h = h - 2 - list_y
     return if list_h < 5
 
@@ -451,22 +475,11 @@ class App
     KEYS.each do |keys, desc|
       break if y > last - 1
       f.put(cx + 3, y, format('%-14s', keys), :accent)
-      f.put(cx + 18, y, truncate(desc, cw - 20), :text)
+      f.put(cx + 18, y, Widgets.truncate(desc, cw - 20), :text)
       y += 1
     end
 
     f.put(cx + 3, last, 'Data source: /proc (stat, meminfo, loadavg, uptime).', :muted)
-  end
-
-  def truncate(str, width)
-    return str if width <= 0 || Term.text_width(str) <= width
-
-    out = +''
-    str.each_char do |ch|
-      break if Term.text_width(out) + Term.width(ch) > width - 1
-      out << ch
-    end
-    out << '…'
   end
 
   # ----------------------------------------------------------------- helpers

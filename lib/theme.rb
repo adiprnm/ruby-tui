@@ -42,10 +42,13 @@ module Style
       "\e[48;5;#{n}m"
     end
 
-    # Colour from the shared ramp; t is 0.0..1.0.
+    # Colour from the shared ramp; t is 0.0..1.0. The returned escape is
+    # memoised so that repeated calls hand out the *same* String object
+    # (Style.id can then hit its cache by identity).
     def ramp(t)
       i = (t.clamp(0.0, 1.0) * (RAMP.length - 1)).round
-      fg(RAMP[i])
+      @ramp ||= Array.new(RAMP.length) { |k| fg(RAMP[k]) }
+      @ramp[i]
     end
 
     def define(name, opts)
@@ -53,6 +56,8 @@ module Style
       @cache ||= {}
       @defs[name] = opts
       @cache.delete(name)
+      @ids = {}
+      @last_style = nil
     end
 
     # Turn a style value into an SGR escape string.
@@ -62,6 +67,33 @@ module Style
 
       @cache ||= {}
       @cache[style] ||= build(style)
+    end
+
+    # Frames store styles as small integers so per-cell writes and compares
+    # stay cheap. 0 is "no style" (RESET).
+    #
+    # The last lookup is memoised by object identity: widgets that paint a
+    # run of cells with the same style (bar charts, gauges) hit this every
+    # time and skip the hash entirely.
+    def id(style)
+      return 0 if style.nil?
+      return @last_id if style.equal?(@last_style)
+
+      @ids ||= {}
+      @sgr ||= [RESET]
+      cached = @ids[style]
+      unless cached
+        @sgr << resolve(style)
+        cached = @sgr.length - 1
+        @ids[style] = cached
+      end
+      @last_style = style
+      @last_id = cached
+    end
+
+    def sgr(id)
+      @sgr ||= [RESET]
+      @sgr[id] || RESET
     end
 
     private

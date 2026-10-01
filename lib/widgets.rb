@@ -178,8 +178,12 @@ module Widgets
         meta_style  = is_sel || (!focused && idx == selected) ? :sel_dim : :muted
 
         name = p[:name].to_s
-        if Term.text_width(name) > nw
-          name = name[0, [nw - 1, 1].max] + '…'
+        # Only pay for a width walk when the name could actually be too
+        # long: for ASCII, chars == cells.
+        if name.length > nw || !name.ascii_only?
+          if Term.text_width(name) > nw
+            name = truncate(name, nw)
+          end
         end
 
         f.put(x + 1, row, format('%-*s', PID_W, p[:pid].to_s), meta_style)
@@ -200,6 +204,21 @@ module Widgets
     end
 
     # --- misc -----------------------------------------------------------
+
+    # Cut a string down to `width` cells, ending with an ellipsis.
+    def truncate(str, width)
+      return str if width <= 0 || Term.text_width(str) <= width
+
+      out = +''
+      used = 0
+      str.each_char do |ch|
+        w = Term.width(ch)
+        break if used + w > width - 1
+        out << ch
+        used += w
+      end
+      out << '…'
+    end
 
     def scrollbar(f, x, y, h, total, visible, offset)
       return if total <= visible || h < 2

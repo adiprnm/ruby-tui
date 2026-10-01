@@ -16,7 +16,6 @@ module Term
   CSI  = "\e["
 
   CLEAR       = "#{CSI}2J"
-  HOME        = "#{CSI}H"
   HIDE_CURSOR = "#{CSI}?25l"
   SHOW_CURSOR = "#{CSI}?25h"
   ALT_ON      = "#{CSI}?1049h"
@@ -41,16 +40,34 @@ module Term
 
   WIDTH_CACHE = {}
 
+  # --- input ------------------------------------------------------------
+
+  # Escape sequences we understand, as read by read_escape.
+  SEQUENCES = {
+    "#{CSI}A" => :up,    "#{CSI}B" => :down,
+    "#{CSI}C" => :right, "#{CSI}D" => :left,
+    "#{CSI}H" => :home,  "#{CSI}F" => :end,
+    "#{CSI}Z" => :backtab,
+    "#{CSI}5~" => :page_up, "#{CSI}6~" => :page_down,
+    "#{CSI}1~" => :home,    "#{CSI}4~" => :end,
+    "OA" => :up,   "OB" => :down, "OC" => :right, "OD" => :left,
+    "OH" => :home, "OF" => :end
+  }.freeze
+
   class << self
-    # Display width of a single character: 0, 1 or 2 cells.
-    def width(ch)
-      WIDTH_CACHE[ch] ||= begin
-        cp = ch.ord
+    # Display width of a codepoint: 0, 1 or 2 cells.
+    def codepoint_width(cp)
+      WIDTH_CACHE[cp] ||= begin
         if ZERO_WIDTH.any? { |r| r.cover?(cp) } then 0
         elsif WIDE.any? { |r| r.cover?(cp) }   then 2
         else 1
         end
       end
+    end
+
+    # Display width of a single character: 0, 1 or 2 cells.
+    def width(ch)
+      codepoint_width(ch.ord)
     end
 
     # Display width of a whole string.
@@ -65,23 +82,17 @@ module Term
       rescue SystemCallError, IOError
         nil
       end
-      cols = (ENV['COLUMNS'] || 80).to_i if !cols || cols <= 0
-      rows = (ENV['LINES'] || 24).to_i  if !rows || rows <= 0
+
+      cols = cols.to_i
+      rows = rows.to_i
+      cols = ENV['COLUMNS'].to_i if cols <= 0
+      rows = ENV['LINES'].to_i   if rows <= 0
+      cols = 80 if cols <= 0
+      rows = 24 if rows <= 0
       [cols, rows]
     end
 
     # --- input ----------------------------------------------------------
-
-    SEQUENCES = {
-      "#{CSI}A" => :up,    "#{CSI}B" => :down,
-      "#{CSI}C" => :right, "#{CSI}D" => :left,
-      "#{CSI}H" => :home,  "#{CSI}F" => :end,
-      "#{CSI}Z" => :backtab,
-      "#{CSI}5~" => :page_up, "#{CSI}6~" => :page_down,
-      "#{CSI}1~" => :home,    "#{CSI}4~" => :end,
-      "OA" => :up,   "OB" => :down, "OC" => :right, "OD" => :left,
-      "OH" => :home, "OF" => :end
-    }.freeze
 
     # Read one key. Returns nil when `timeout` seconds pass with no input.
     # Named keys come back as symbols (:up, :enter, :tab, :escape, ...),
@@ -152,14 +163,6 @@ module Term
 
     def move(row, col)
       "#{CSI}#{row + 1};#{col + 1}H"
-    end
-
-    def sgr(codes)
-      "\e[#{codes}m"
-    end
-
-    def reset
-      "\e[0m"
     end
   end
 end
