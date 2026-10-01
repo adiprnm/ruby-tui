@@ -388,6 +388,6 @@ size distribution, canvas drawing/clipping/wide characters/row composition,
 the differential writer (asserting byte counts), every container (including
 modals), every component, focus traversal and key dispatch, key parsing,
 layout invariants at several terminal sizes, the cashier's cart arithmetic
-and receipt formatting, and two end-to-end pty sessions (\(bin/rtop\) and a
-complete sale typed through \(bin/kasir\)) that assert the terminal is
+and receipt formatting, and two end-to-end pty sessions (`bin/rtop` and a
+complete sale typed through `bin/kasir`) that assert the terminal is
 restored.
