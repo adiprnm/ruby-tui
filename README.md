@@ -276,14 +276,24 @@ TUI::Style.define(:mine, fg: 250, bg: 236)
 canvas.put(x, y, '!', :mine)
 ```
 
-The default theme is **hueless on purpose**: the chrome uses the terminal's
-own grey ramp, the cursor is reverse video and `:accent` is just bold (so it
-inherits whatever foreground you are running), which means the UI never
-fights the terminal's colour scheme. Only the semantic statuses
-(`:success`, `:warning`, `:danger`, `:error`) and the value ramp used by
-gauges and charts carry a colour, because there the colour is information.
-A test walks every defined style and fails if anything else has a non-grey
-colour.
+Two themes ship with the library:
+
+* `:dark` (the default) is grey-only: the chrome uses the terminal's grey
+  ramp, text fields carry **no colour codes at all** (the value uses the
+  terminal's default foreground, the placeholder only goes faint and the
+  cursor only reverses) and `:accent` is just bold.
+* `:plain` goes further and drops every colour code from the chrome, using
+  only bold / dim / reverse, so the terminal's own theme decides everything:
+
+```ruby
+TUI::Theme.install(:plain)
+```
+
+Both examples take `--theme=plain`, and both keep colours only where the
+colour *is information*: the semantic statuses (`:success`, `:warning`,
+`:danger`, `:error`) and the value ramp used by gauges and charts. Tests
+walk every defined style and fail if the chrome of a theme carries a colour,
+and render every widget under both themes.
 
 `Style.ramp(t)` maps 0.0..1.0 onto the shared teal→green→amber→red ramp,
 which is what gauges and charts use. Named styles are turned into small
@@ -343,7 +353,9 @@ ruby bin/rtop --snapshot --w=120 --h=34          # one frame to stdout
 ruby bin/rtop --snapshot --view=procs            # dash | procs | help
 ```
 
-`--snapshot` needs no tty, so it works over pipes and in CI.
+`--snapshot` needs no tty, so it works over pipes and in CI. Add
+`--theme=plain` to any of the commands above to see it with no colours at
+all.
 
 ## Performance
 
@@ -392,7 +404,7 @@ test/                       the test suite
 ruby test/run.rb
 ```
 
-155 tests run on a ~90-line homegrown harness (stdlib only): geometry and
+163 tests run on a ~90-line homegrown harness (stdlib only): geometry and
 size distribution, canvas drawing/clipping/wide characters/row composition,
 the differential writer (asserting byte counts), every container (including
 modals), every component, focus traversal and key dispatch, key parsing,

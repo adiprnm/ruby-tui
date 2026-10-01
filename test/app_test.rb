@@ -133,24 +133,52 @@ puts 'App -- layout at any size'
 
 def kitchen_sink
   table = TUI::Table.new(
-    columns: [{ key: :a, header: 'A', width: TUI.flex(1) },
+    columns: [{ key: :a, header: 'A', width: TUI::flex(1) },
               { key: :b, header: 'B', width: 6, align: :right }],
     rows: (1..40).map { |i| { a: "row #{i}", b: i } },
     sortable: true
   )
   form = TUI::Form.new
-  form.text(:one, 'One')
-  form.text(:two, 'Two')
+  form.text(:one, 'One', required: true)
+  form.area(:notes, 'Notes', rows: 2)
+  form.radio(:pick, 'Pick', options: %w[yes no])
+  form.toggle(:flag, 'Flag')
   form.button('Go')
   list = TUI::List.new(items: (1..20).map { |i| "item #{i}" })
+
+  # every remaining widget, in a viewport so it can be taller than the pane
+  extras = TUI::Layout::Stack.new(direction: :vertical, gap: 1)
+  extras.add(TUI::Label.new('status styles', style: :title), size: TUI.fixed(1))
+  extras.add(TUI::Label.new('muted / dim / accent / label / value', style: :muted),
+             size: TUI.fixed(1))
+  extras.add(TUI::ProgressBar.new(label: 'DISK', value: 0.6), size: TUI.fixed(1))
+  extras.add(TUI::ProgressBar.new(value: 0.3, ramp: false), size: TUI.fixed(1))
+  extras.add(TUI::Sparkline.new(values: (0..40).map { |i| (Math.sin(i / 4.0) + 1) / 2 }),
+             size: TUI.fixed(1))
+  extras.add(TUI::BarChart.new(values: (0..30).map { |i| (i % 10) / 10.0 }),
+             size: TUI.fixed(4))
+  extras.add(TUI::Layout::Divider.new, size: TUI.fixed(1))
+  extras.add(TUI::Checkbox.new('checkbox', value: true), size: TUI.fixed(1))
+  extras.add(TUI::RadioGroup.new(options: %w[a b c], selected: 1), size: TUI.fixed(1))
+  extras.add(TUI::Button.new('button'), size: TUI.fixed(1))
+  extras.add(TUI::Label.new('error shown here', style: :error), size: TUI.fixed(1))
+  extras.add(TUI::Label.new('warning shown here', style: :warning), size: TUI.fixed(1))
+  extras.add(TUI::Label.new('success shown here', style: :success), size: TUI.fixed(1))
+  extras.add(TUI::Label.new('danger shown here', style: :danger), size: TUI.fixed(1))
 
   tabs = TUI::Tabs.new(orientation: :vertical)
   tabs.add_tab('Table', table)
   tabs.add_tab('Form', form)
   tabs.add_tab('List', list)
+  tabs.add_tab('Widgets', TUI::Layout::Viewport.new(extras))
 
-  root = TUI::Layout::Box.new(title: ' kitchen ', footer: ' tab focus ')
-  root.add(tabs)
+  overlay = TUI::Layout::Overlay.new(tabs, TUI::Layout::Box.new(title: 'modal') do |b|
+    b.add(TUI::Label.new('modal body', style: :muted))
+  end)
+
+  root = TUI::Layout::Box.new(title: ' kitchen ', footer: ' tab focus ',
+                              title_right: 'right')
+  root.add(overlay)
   root
 end
 
@@ -164,6 +192,17 @@ end
     end
     assert_equal 1, lines.first.count('╭'), 'no panel escapes the root box'
     assert_equal 1, lines.last.count('╰')
+  end
+end
+
+test 'every theme can render every component' do
+  TUI::Theme.themes.each do |theme|
+    TUI::Theme.install(theme)
+    lines = render_lines(kitchen_sink, 100, 30)
+    assert_equal 30, lines.length, "theme #{theme}"
+    lines.each { |line| assert_equal 100, line.length, "theme #{theme}" }
+  ensure
+    TUI::Theme.install(:dark)
   end
 end
 

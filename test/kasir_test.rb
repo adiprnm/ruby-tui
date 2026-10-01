@@ -242,6 +242,14 @@ test 'every state fits every size' do
   end
 end
 
+test 'the plain theme renders a colourless till' do
+  root = File.expand_path('..', __dir__)
+  out = `ruby #{File.join(root, 'bin', 'kasir')} --snapshot --state=cart --theme=plain --w=88 --h=18 2>&1`
+
+  assert_includes plain(out), 'Keranjang'
+  refute out =~ /\e\[[0-9;]*(38|48);5;/, 'the plain theme emits no colour codes'
+end
+
 test 'bin/kasir --snapshot works without a terminal' do
   root = File.expand_path('..', __dir__)
   out = `ruby #{File.join(root, 'bin', 'kasir')} --snapshot --state=cart --w=100 --h=26 2>&1`

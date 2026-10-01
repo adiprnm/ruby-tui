@@ -24,6 +24,7 @@ module Rtop
 
         ruby examples/rtop/main.rb                 interactive
         ruby examples/rtop/main.rb --snapshot      dump one frame to stdout
+        ruby examples/rtop/main.rb --theme=plain   no colours at all (see Theme)
         ruby examples/rtop/main.rb --snapshot --view=procs --w=120 --h=34
                                    --frames=N --delay=SECONDS
 
@@ -33,6 +34,7 @@ module Rtop
     class << self
       def run(argv)
         options = parse(argv)
+        TUI::Theme.install(options[:theme]) if options[:theme]
         app = App.new
         options[:snapshot] ? snapshot(app, options) : interactive(app)
         app
@@ -43,6 +45,7 @@ module Rtop
         argv.each do |arg|
           case arg
           when '--snapshot'         then options[:snapshot] = true
+          when /\A--theme=(\w+)\z/   then options[:theme] = Regexp.last_match(1)
           when /\A--view=(\w+)\z/   then options[:view] = Regexp.last_match(1)
           when /\A--w=(\d+)\z/      then options[:w] = Regexp.last_match(1).to_i
           when /\A--h=(\d+)\z/      then options[:h] = Regexp.last_match(1).to_i
