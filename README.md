@@ -281,12 +281,9 @@ own grey ramp, the cursor is reverse video and `:accent` is just bold (so it
 inherits whatever foreground you are running), which means the UI never
 fights the terminal's colour scheme. Only the semantic statuses
 (`:success`, `:warning`, `:danger`, `:error`) and the value ramp used by
-gauges and charts carry a colour — a test asserts exactly that:
-
-```ruby
-TUI::Style.names.select { |n| TUI::Style.resolve(n) =~ /38;5;(?!\d*(?:2\d\d|1?[0-9]?[0-9]?))/ }  # ...
-# => [:danger, :error, :success, :warning]
-```
+gauges and charts carry a colour, because there the colour is information.
+A test walks every defined style and fails if anything else has a non-grey
+colour.
 
 `Style.ramp(t)` maps 0.0..1.0 onto the shared teal→green→amber→red ramp,
 which is what gauges and charts use. Named styles are turned into small
