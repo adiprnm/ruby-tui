@@ -22,6 +22,7 @@ module TUI
       dim:       245,
       muted:     240,
       title:     231,
+      # Kept for re-skins; the default theme does not use them (see below).
       accent:    51,
       accent2:   141,
       good:      84,
@@ -37,8 +38,13 @@ module TUI
       muted:         { fg: PALETTE[:muted] },
       dim:           { fg: PALETTE[:dim] },
       title:         { fg: PALETTE[:title], bold: true },
-      subtitle:      { fg: PALETTE[:accent2] },
-      accent:        { fg: PALETTE[:accent], bold: true },
+      subtitle:      { fg: PALETTE[:dim], bold: true },
+
+      # The accent is deliberately hueless: it inherits whatever foreground
+      # the terminal is using and only goes bold, so the chrome never fights
+      # the colour scheme you are running. Put a colour back with
+      #   TUI::Theme.style(:accent, fg: TUI::Theme::PALETTE[:accent], bold: true)
+      accent:        { bold: true },
       label:         { fg: PALETTE[:muted] },
       value:         { fg: PALETTE[:text] },
       success:       { fg: PALETTE[:good] },
@@ -59,7 +65,7 @@ module TUI
       # neutral on any palette (and never fights the accent colour).
       cursor:        { reverse: true, bold: true },
 
-      tab_active:    { fg: PALETTE[:accent], bold: true },
+      tab_active:    { bold: true },
       tab_inactive:  { fg: PALETTE[:dim] },
       header:        { fg: PALETTE[:muted] },
       field:         { fg: PALETTE[:text] },

@@ -58,3 +58,41 @@ test 'the terminal size falls back to COLUMNS and LINES' do
 ensure
   ENV['COLUMNS'], ENV['LINES'] = old
 end
+
+puts 'Theme -- neutral by default'
+
+test 'the accent carries no colour of its own' do
+  accent = TUI::Style.resolve(:accent)
+  refute accent.include?('38;5;'), "accent should inherit the terminal foreground: #{accent.inspect}"
+  refute accent.include?('48;5;'), 'accents never paint a background'
+end
+
+test 'the cursor is hueless too' do
+  cursor = TUI::Style.resolve(:cursor)
+  refute cursor.include?('38;5;')
+  refute cursor.include?('48;5;')
+end
+
+# xterm-256: 232..255 is the grey ramp, and inside the colour cube (16..231)
+# the grey axis is the one where r == g == b (16 = black, 231 = white).
+def neutral?(index)
+  return true if index >= 232
+  return false if index < 16
+
+  n = index - 16
+  r = n / 36
+  g = (n % 36) / 6
+  b = n % 6
+  r == g && g == b
+end
+
+test 'only status and data styles carry a hue' do
+  hued = TUI::Style.names.select do |name|
+    sgr = TUI::Style.resolve(name)
+    sgr.scan(/(?:38|48);5;(\d+)/).flatten.map(&:to_i).any? { |c| !neutral?(c) }
+  end.sort
+
+  assert_equal %i[danger error success warning], hued,
+               "only semantic status styles should be coloured, got #{hued.inspect}"
+end
+
