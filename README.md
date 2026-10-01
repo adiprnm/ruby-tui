@@ -101,11 +101,24 @@ example applications built entirely out of the generic components: `rtop`
 ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## Installation
+
+```sh
+gem install ruby-tui
+```
+
+Or in a `Gemfile`:
+
+```ruby
+gem 'ruby-tui'
+```
+
+The gem is named `ruby-tui`; the module it defines is `TUI`.
+
 ## Quick start
 
 ```ruby
-$LOAD_PATH.unshift 'lib'
-require 'tui'
+require 'ruby-tui'
 
 label = TUI::Label.new('hello, world', align: :center)
 app = TUI::App.new(label)
