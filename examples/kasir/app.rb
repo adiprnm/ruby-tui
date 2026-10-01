@@ -197,7 +197,10 @@ module Kasir
       row = TUI::Layout::Stack.new(direction: :horizontal, gap: 1)
       row.add(TUI::Label.new('Cari', style: :label), size: TUI.fixed(4))
 
-      @search = TUI::Input.new(placeholder: 'nama atau kode barang…', padding: 1)
+      # No underline over the hint: the caret cell simply keeps the
+      # placeholder's own faint look.
+      @search = TUI::Input.new(placeholder: 'nama atau kode barang…', padding: 1,
+                               hint_cursor_style: :placeholder)
       @search.on(TUI::Events::CHANGE) { refresh_products }
       row.add(@search, size: TUI::flex(1))
 
