@@ -280,8 +280,9 @@ Two themes ship with the library:
 
 * `:dark` (the default) is grey-only: the chrome uses the terminal's grey
   ramp, text fields carry **no colour codes at all** (the value uses the
-  terminal's default foreground, the placeholder only goes faint and the
-  cursor only reverses) and `:accent` is just bold.
+  terminal's default foreground, the placeholder only goes faint, the block
+  cursor only reverses — and while a field is empty the caret is just an
+  underline, so the hint stays transparent) and `:accent` is just bold.
 * `:plain` goes further and drops every colour code from the chrome, using
   only bold / dim / reverse, so the terminal's own theme decides everything:
 
@@ -404,7 +405,7 @@ test/                       the test suite
 ruby test/run.rb
 ```
 
-163 tests run on a ~90-line homegrown harness (stdlib only): geometry and
+164 tests run on a ~90-line homegrown harness (stdlib only): geometry and
 size distribution, canvas drawing/clipping/wide characters/row composition,
 the differential writer (asserting byte counts), every container (including
 modals), every component, focus traversal and key dispatch, key parsing,

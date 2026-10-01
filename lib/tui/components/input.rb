@@ -18,7 +18,7 @@ module TUI
     def initialize(value: '', placeholder: nil, password: false,
                    width: 24, padding: 1, style: :field,
                    placeholder_style: :placeholder, cursor_style: :cursor,
-                   **opts)
+                   hint_cursor_style: :cursor_placeholder, **opts)
       super(**opts)
       @buffer = TextBuffer.new(value)
       @placeholder = placeholder
@@ -28,6 +28,7 @@ module TUI
       @style = style
       @placeholder_style = placeholder_style
       @cursor_style = cursor_style
+      @hint_cursor_style = hint_cursor_style
       @scroll = 0
     end
 
@@ -116,15 +117,14 @@ module TUI
       cell = cursor_cell - @scroll
       return if cell.negative? || cell >= area.w
 
-      # The cursor replaces the cell it sits on: take the character that is
-      # displayed there, so a placeholder does not lose its first letter.
-      char = if @password
-               '*'
-             elsif empty_with_placeholder?
-               @placeholder[cell - @scroll] || ' '
-             else
-               @buffer.current_line[@buffer.col]
-             end
+      # While the hint is showing there is no block cursor: the character is
+      # kept and only underlined, so the placeholder stays transparent.
+      if empty_with_placeholder?
+        canvas.put(area.x + cell, area.y, @placeholder[cell] || ' ', @hint_cursor_style)
+        return
+      end
+
+      char = @password ? '*' : @buffer.current_line[@buffer.col]
       canvas.put(area.x + cell, area.y, char && !char.empty? ? char : ' ', @cursor_style)
     end
 

@@ -130,8 +130,19 @@ test 'input shows a placeholder, focused or not' do
   app.focus(field)
   canvas = app.render_frame
   assert_includes plain(canvas.row(1)), 'name',
-                  'the placeholder stays readable under the cursor'
-  assert_includes canvas.row(1), TUI::Style.resolve(:cursor)
+                  'the placeholder stays readable under the caret'
+  assert_includes canvas.row(1), TUI::Style.resolve(:cursor_placeholder),
+                  'the caret over a hint is an underline'
+  refute canvas.row(1).include?('48;5;'), 'nothing is painted over the placeholder'
+  refute canvas.row(1).include?(TUI::Style.resolve(:cursor)),
+         'no block cursor while the hint is showing'
+end
+
+test 'the block cursor appears once there is text' do
+  field = TUI::Input.new(value: 'abc', padding: 0)
+  app = TUI::App.new(field, out: CountingIO.new, size: [10, 1])
+  app.focus(field)
+  assert_includes app.render_frame.row(0), TUI::Style.resolve(:cursor)
 end
 
 test 'the cursor is neutral: reverse video, not a coloured block' do

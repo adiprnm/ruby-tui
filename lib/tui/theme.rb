@@ -74,7 +74,12 @@ module TUI
       # the cursor only reverses. Nothing inside a text field can fight
       # whatever colours the terminal (or its theme) is running.
       field:         {},
-      placeholder:   { dim: true }
+      placeholder:   { dim: true },
+
+      # While a field is empty it shows a hint, and the "cursor" over that
+      # hint is just an underline: nothing paints a background over the
+      # placeholder, so it stays transparent.
+      cursor_placeholder: { underline: true }
     }.freeze
 
     # A completely hueless variant: no colour codes at all, only attributes
@@ -92,6 +97,7 @@ module TUI
       muted: { dim: true }, dim: { dim: true }, hint: { dim: true },
       label: { dim: true }, header: { dim: true }, tab_inactive: { dim: true },
       placeholder: { dim: true }, border: { dim: true }, track: { dim: true },
+      cursor_placeholder: { underline: true },
       grid: { dim: true }, selection_dim: { reverse: true },
       selection: { reverse: true }, cursor: { reverse: true },
       success: DARK[:success], warning: DARK[:warning],

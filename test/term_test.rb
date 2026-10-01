@@ -68,7 +68,7 @@ test 'the accent carries no colour of its own' do
 end
 
 test 'text fields carry no colour at all' do
-  %i[field placeholder cursor].each do |name|
+  %i[field placeholder cursor cursor_placeholder].each do |name|
     sgr = TUI::Style.resolve(name)
     refute sgr.include?('38;5;'), "#{name} should inherit the terminal foreground: #{sgr.inspect}"
     refute sgr.include?('48;5;'), "#{name} should not paint a background: #{sgr.inspect}"
@@ -78,7 +78,8 @@ end
 test 'the plain theme keeps the whole chrome colourless' do
   chrome = %i[text value field title subtitle accent tab_active tab_inactive
               muted dim hint label header placeholder border border_focus
-              track grid thumb selection selection_dim cursor]
+              track grid thumb selection selection_dim cursor
+              cursor_placeholder]
 
   TUI::Theme.install(:plain)
   chrome.each do |name|
