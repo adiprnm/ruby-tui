@@ -65,14 +65,60 @@ golden-output tests and for eyeballing layout changes without a terminal.
 ## Layout
 
 ```
-lib/term.rb      terminal plumbing: ANSI sequences, size, lossless key reading
-lib/theme.rb     the palette and the style registry (styles become small ints)
-lib/screen.rb    Frame (off-screen cell grid) + Screen (diffed presentation)
-lib/widgets.rb   box, border label, gauge, bar chart, sparkline, process table
-lib/sysdata.rb   /proc parsing: cpu, memory, load, uptime, processes
-lib/app.rb       state, key handling and the three views
-rtop.rb          argument parsing + the raw-mode/alternate-screen session
+rtop.rb                    CLI: flags, raw-mode/alternate-screen session
+lib/app.rb                 UI state, main loop, key handling, component wiring
+lib/sampler.rb             /proc sampling on a schedule (no UI at all)
+lib/components.rb          component contract, menu, presenters
+lib/components/            the three views + what wraps them
+  chrome.rb                  outer border, clock, key hints, sidebar
+  dashboard.rb               CPU chart, memory/system panels, top processes
+  processes.rb               the full process table
+  help.rb                    key reference
+  too_small.rb               fallback for tiny windows
+lib/widgets.rb             widget namespace + glyphs
+lib/widgets/               drawing primitives, each a module function
+  box.rb  text.rb  meter.rb  chart.rb  table.rb  panel.rb
+lib/frame.rb               Frame: an off-screen cell grid
+lib/screen.rb              Screen: diffed presentation
+lib/term.rb                ANSI, terminal size, lossless key reading
+lib/theme.rb               palette + named styles
+lib/style.rb               style mechanism (SGR strings, style ids)
+lib/sysdata.rb             /proc namespace + kernel constants
+lib/sysdata/               the parsers
+  system.rb                  cpu, memory, load, uptime, formatting
+  processes.rb               process snapshot, cpu% arithmetic
 ```
+
+**The component contract.** A component is constructed with the application
+state (the `App` instance, duck-typed -- components only ever read from it)
+and draws itself into a rectangle:
+
+```ruby
+component.draw(frame, x, y, w, h)
+```
+
+Views get the area to the right of the sidebar, `Chrome` gets the whole
+screen. Components never mutate state and never touch the terminal, so any of
+them can be rendered into a frame at any size -- which is exactly what the
+tests do. Adding a view means writing one component, adding it to
+`Components::MENU`, and registering it in `App#initialize`.
+
+**The widget contract.** Widgets are stateless module functions that take the
+frame first and stay inside their rectangle:
+
+```ruby
+Widgets.panel(frame, x, y, w, h, 'CPU', right: '12 cores')
+Widgets.bars(frame, x + 1, y + 1, w - 2, h - 2, history)
+```
+
+Nothing in `lib/widgets/` knows about rtop, and nothing in `lib/components/`
+knows about the terminal.
+
+Two objects sit behind the components: **Sampler** owns the metrics (it
+decides when the CPU history and the process table are refreshed) and
+**App** owns the UI state (which view, where the focus and the cursor are)
+and turns keys into changes to that state. Components read from App and draw;
+they never write back.
 
 ## Design notes
 

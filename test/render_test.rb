@@ -194,8 +194,7 @@ test 'the selection follows the same process across refreshes' do
     sel = app.instance_variable_get(:@proc_sel)
     pid = app.instance_variable_get(:@proc_rows)[sel][:pid]
 
-    app.instance_variable_set(:@last_proc_sample, 0.0)
-    app.send(:refresh_procs)
+    app.refresh_processes!
 
     again = app.instance_variable_get(:@proc_rows)[app.instance_variable_get(:@proc_sel)]
     assert_equal pid, again[:pid], 'cursor should stick to the same process'
