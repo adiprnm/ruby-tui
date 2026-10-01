@@ -4,6 +4,8 @@
 # Ruby does. No minitest, no gems.
 
 $LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
+require 'tui'
+require 'stringio'
 
 module Harness
   class Failure < StandardError; end
@@ -13,7 +15,7 @@ module Harness
   @cases = 0
 
   class << self
-    attr_reader :passed, :failures, :cases
+    attr_reader :passed, :failures
 
     def test(name)
       @cases ||= 0
@@ -27,7 +29,7 @@ module Harness
     rescue StandardError => e
       @failures << [name, e]
       puts "  \e[31m✗\e[0m #{name}\n      #{e.class}: #{e.message}"
-      puts e.backtrace.first(4).map { |l| "        #{l}" }.join("\n")
+      puts e.backtrace.first(5).map { |l| "        #{l}" }.join("\n")
     end
 
     def report!
@@ -40,7 +42,7 @@ module Harness
     end
 
     def failed?
-      !@failures.empty?
+      !(@failures || []).empty?
     end
   end
 end
@@ -69,19 +71,63 @@ def refute(condition, message = 'expected condition to be false')
   raise Harness::Failure, message if condition
 end
 
-# Strip SGR colour codes so tests can assert on the text of a frame.
+# Strip SGR escapes so tests can assert on the text of a render.
 def plain(str)
   str.gsub(/\e\[[0-9;?]*[a-zA-Z]/, '')
 end
 
-# Deterministic terminal geometry for anything that reads ENV.
-def with_size(cols, rows)
-  old = [ENV['COLUMNS'], ENV['LINES']]
-  ENV['COLUMNS'] = cols.to_s
-  ENV['LINES'] = rows.to_s
-  yield
-ensure
-  ENV['COLUMNS'], ENV['LINES'] = old
+# Render a tree to an array of plain-text rows at a fixed size.
+def render_lines(root, cols = 80, rows = 24)
+  TUI.render(root, cols: cols, rows: rows).lines.map { |line| plain(line) }
+end
+
+def render_text(root, cols = 80, rows = 24)
+  render_lines(root, cols, rows).join("\n")
+end
+
+# A sink that counts what was written, for renderer tests.
+class CountingIO
+  attr_reader :bytes, :writes
+
+  def initialize
+    @bytes = 0
+    @writes = 0
+  end
+
+  def print(str)
+    @bytes += str.bytesize
+    @writes += 1
+  end
+
+  def flush; end
+
+  def tty?
+    false
+  end
+
+  def reset
+    @bytes = 0
+    @writes = 0
+  end
+end
+
+# A component focusing helper: every focusable gets a name so tests can
+# assert on the tab order.
+class NamedLabel < TUI::Label
+  attr_accessor :name
+
+  def initialize(name, **opts)
+    super(name, **opts)
+    @name = name
+  end
+
+  def focusable?
+    true
+  end
+
+  def render(canvas)
+    canvas.text(rect, "#{@name}#{focused? ? '*' : ''}", :text)
+  end
 end
 
 at_exit do

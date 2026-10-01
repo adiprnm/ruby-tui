@@ -1,176 +1,292 @@
-# rtop — a pure-Ruby TUI
+# TUI — a pure-Ruby terminal UI toolkit
 
-A small, interactive system monitor that is also a worked example of how to
-build an elegant TUI in **pure Ruby**: no `curses`, no `tty-*`, no native
-extensions. Everything is `io/console` plus ANSI escape codes, and all the
-numbers come from `/proc`.
+A small toolkit for building interactive terminal applications in plain
+Ruby: **no curses, no gems, no native extensions**. It ships a component
+model, a layout engine, focus handling and a widget library, plus an example
+application (`rtop`, a system monitor) built entirely out of the generic
+components.
 
 ```
-╭  rtop  ──────────────────────────────────────────────────  Thu 01 Oct  13:03:01  ╮
-│                   │╭ CPU ─────────────────────────────────── 12 cores   20.0%  ╮ │
-│ VIEWS             ││                                                          │ │
-│                   ││··························································│ │
-│▌ ◈  Dashboard     ││                                                          │ │
-│                   ││··························································│ │
-│▌ ▤  Processes     ││                                                       ▂▃▅│ │
-│                   ││··························································│ │
-│▌ ?  Help          ││                                                       ███│ │
-│                   │╰──────────────────────────────────────────────────────────╯ │
-│                   │╭ Memory ─────────────── 66.8% full  ╮ ╭ System ─── laptopsiadi ╮ │
-│ SYSTEM            ││ MEM [█████████░░░░░]   10.0G/15.0G │ │ uptime  15d 02:44      │ │
-│ load         2.53 ││ SWP [██░░░░░░░░░░░░]    4.2G/30.0G │ │ load    2.53 2.39 2.16 │ │
-│ procs         460 ││ available 5.0G  (33.2%)           │ │ procs   460  ·  cpu 12x│ │
-│ uptime  15d 02:44 │╰───────────────────────────────────╯ ╰────────────────────────╯ │
-│ mem           67% │╭ Top processes ────────────────────────────────── by cpu  ╮ │
-│ [██████████░░░░░] ││ PID      COMMAND                          %CPU     MEM │ │
-│                   ││ 2744183  postgres                          9.0    253M │ │
-╰──────────────────────  ↑↓ view · 1-3 jump · ? help · q quit  ──────────────────────╯
+╭  rtop  ───────────────────  ↑↓ view · 1-3 jump · ? help · q quit  ───────────────────────────╮
+│▌ ◈  Dashboard      ╭ CPU ────────────────────────────────────────────────── 12 cores   9.8% ╮│
+│  ▤  Processes      │                                                                        ││
+│  ?  Help           │                                                                        ││
+│                    │········································································││
+│                    │                                                                        ││
+│                    │                                                                        ││
+│                    │········································································││
+│                    │                                                                        ││
+│                    │········································································││
+│                    │                                                                     ▅  ││
+│                    │                                                                     █▂▁││
+│                    │                                                                     ███││
+│                    ╰────────────────────────────────────────────────────────────────────────╯│
+│                    ╭ Memory ─────────────── 65.0% full ╮╭ System ────────────── laptopsiadi ╮│
+│                    │MEM ████████████░░░░░░░ 9.8G/15.0G ││uptime  15d 04:20                  ││
+│                    │SWP ██░░░░░░░░░░░░░░░░░ 3.7G/30.0G ││load    1.71 1.29 0.91             ││
+│                    │available 5.3G  (35.0%)            ││procs   459  ·  cpu 12x            ││
+│                    ╰───────────────────────────────────╯╰───────────────────────────────────╯│
+│                    ╭ Top processes ───────────────────────────────────────────────── by cpu ╮│
+│╭ System ──────────╮│     PID COMMAND                                        %CPU ▼      MEM ││
+││load          1.71││────────────────────────────────────────────────────────────────────────││
+││procs          459││  696824 nvim                                              3.6    75.0M│││
+││uptime   15d 04:20││ 1520531 claude                                            3.6     242M│││
+││mem            65%││ 1547047 claude                                            3.6     250M┃││
+││████████████░░░░░░││ 3448784 chromium                                          3.6    26.1M┃││
+│╰──────────────────╯╰────────────────────────────────────────────────────────────────────────╯│
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## Requirements
+## Quick start
 
-Ruby 2.0+ on Linux (the data source is `/proc`). Developed and tested against
-the stock Ruby 2.6.10 that ships with this machine; no gems are installed for
-it and none are required.
+```ruby
+$LOAD_PATH.unshift 'lib'
+require 'tui'
 
-## Usage
+label = TUI::Label.new('hello, world', align: :center)
+app = TUI::App.new(label)
+app.on_key('q') { app.quit }
+app.run   # alternate screen + raw mode, restored on exit
+```
 
 ```sh
-ruby rtop.rb                # interactive
-ruby rtop.rb --help         # all the flags
-
-ruby rtop.rb --snapshot                 # render one frame to stdout (no raw mode)
-ruby rtop.rb --snapshot --view=procs    # dash | procs | help
-ruby rtop.rb --snapshot --w=120 --h=36  # pretend terminal size
-ruby rtop.rb --snapshot --frames=3      # a few frames, 0.4s apart
+ruby examples/hello.rb          # a form with validation
+ruby bin/rtop                   # the example application
+ruby test/run.rb                # the test suite, no gems required
 ```
 
-`--snapshot` needs no tty, so it works over pipes and in CI — handy for
-golden-output tests and for eyeballing layout changes without a terminal.
+Requires Ruby 2.0+ (developed against the stock Ruby 2.6.10 on Linux).
 
-### Keys
+## The component model
 
-| key | action |
+Everything on screen is a `TUI::Component`: a node in a tree that is handed
+a rectangle, paints itself into it and may consume keys while focused.
+
+```ruby
+class Clock < TUI::Component
+  def measure(max_w, max_h)                 # what it would like to be
+    [12, 1]
+  end
+
+  def render(canvas)                        # paint inside #rect
+    canvas.text(rect, Time.now.strftime('%H:%M:%S'), :accent, :center)
+  end
+
+  def handle_key(key)                       # only while focused
+    return false unless key.name == :enter
+    emit(:press)
+    true                                    # consumed: do not bubble
+  end
+end
+```
+
+| method | purpose |
 | --- | --- |
-| `↑` `↓` / `j` `k` | move in the sidebar, or scroll the list when it has focus |
-| `tab` | toggle focus between sidebar and content |
-| `←` `→` / `h` `l` | change the process sort order (cpu% / memory) |
-| `1` `2` `3` | jump to Dashboard / Processes / Help |
-| `enter` | focus the content pane |
-| `pgup` `pgdn` `home` `end` | move around the list |
-| `r` | refresh the process table now |
-| `esc` | back to the sidebar |
-| `q` / `ctrl-c` | quit |
+| `measure(max_w, max_h)` | preferred size, used for `TUI.auto` sizing |
+| `layout(rect)` | receive a rect and place the children (containers) |
+| `render(canvas)` | draw; the canvas is clipped to the rect by the parent |
+| `handle_key(key)` | return true to consume the key |
+| `focusable?` | whether `tab` can reach it |
+| `on(event) { }` / `emit(event)` | `:change`, `:select`, `:submit`, `:press`, `:focus`, `:blur`, ... |
+| `focused?` / `contains_focus?` | focus state, for highlighting |
+
+Components never talk to the terminal and never mutate each other's state,
+which is why any subtree can be rendered off-screen at any size:
+
+```ruby
+canvas = TUI.render(root, cols: 100, rows: 30)
+canvas.lines     # one ANSI string per row
+```
 
 ## Layout
 
-```
-rtop.rb                    CLI: flags, raw-mode/alternate-screen session
-lib/app.rb                 UI state, main loop, key handling, component wiring
-lib/sampler.rb             /proc sampling on a schedule (no UI at all)
-lib/components.rb          component contract, menu, presenters
-lib/components/            the three views + what wraps them
-  chrome.rb                  outer border, clock, key hints, sidebar
-  dashboard.rb               CPU chart, memory/system panels, top processes
-  processes.rb               the full process table
-  help.rb                    key reference
-  too_small.rb               fallback for tiny windows
-lib/widgets.rb             widget namespace + glyphs
-lib/widgets/               drawing primitives, each a module function
-  box.rb  text.rb  meter.rb  chart.rb  table.rb  panel.rb
-lib/frame.rb               Frame: an off-screen cell grid
-lib/screen.rb              Screen: diffed presentation
-lib/term.rb                ANSI, terminal size, lossless key reading
-lib/theme.rb               palette + named styles
-lib/style.rb               style mechanism (SGR strings, style ids)
-lib/sysdata.rb             /proc namespace + kernel constants
-lib/sysdata/               the parsers
-  system.rb                  cpu, memory, load, uptime, formatting
-  processes.rb               process snapshot, cpu% arithmetic
-```
-
-**The component contract.** A component is constructed with the application
-state (the `App` instance, duck-typed -- components only ever read from it)
-and draws itself into a rectangle:
+Layout is composition: containers are components too.
 
 ```ruby
-component.draw(frame, x, y, w, h)
+root = TUI::Layout::Box.new(title: ' my app ', footer: ' q quit ')
+columns = TUI::Layout::Stack.new(direction: :horizontal)
+sidebar = TUI::Layout::Stack.new(direction: :vertical)
+inner = TUI::Layout::Stack.new(direction: :vertical)
+
+sidebar.add(menu, size: TUI.flex(1))
+sidebar.add(stats, size: TUI.fixed(7))
+inner.add(header, size: TUI.auto)
+inner.add(table,  size: TUI.flex(1))
+
+columns.add(sidebar, size: TUI.fixed(20))
+columns.add(inner,   size: TUI.flex(1))
+root.add(columns)
 ```
 
-Views get the area to the right of the sidebar, `Chrome` gets the whole
-screen. Components never mutate state and never touch the terminal, so any of
-them can be rendered into a frame at any size -- which is exactly what the
-tests do. Adding a view means writing one component, adding it to
-`Components::MENU`, and registering it in `App#initialize`.
+| container | what it does |
+| --- | --- |
+| `Layout::Stack` | row or column; children get a size spec |
+| `Layout::Box` | border + title + footer + padding around one child; the border lights up while the child has focus |
+| `Layout::Center` | child at its preferred size, centred |
+| `Layout::Viewport` | scrollable window over larger content (`scroll_by`) |
+| `Layout::Spacer` / `Divider` | empty space / a rule |
 
-**The widget contract.** Widgets are stateless module functions that take the
-frame first and stay inside their rectangle:
+Size specs are `TUI.fixed(n)`, `TUI.flex(weight)`, `TUI.percent(0.42)`,
+`TUI.auto` (measured) or a bare number (fixed). Distribution always respects
+the space actually available, so a tree never has to care how big the
+terminal is:
 
 ```ruby
-Widgets.panel(frame, x, y, w, h, 'CPU', right: '12 cores')
-Widgets.bars(frame, x + 1, y + 1, w - 2, h - 2, history)
+stack.add(chart, size: TUI.percent(0.5))   # half the height...
+stack.add(panel, size: TUI.fixed(6))       # ...then a fixed panel...
+stack.add(table, size: TUI.flex(1))        # ...and the table takes the rest
 ```
 
-Nothing in `lib/widgets/` knows about rtop, and nothing in `lib/components/`
-knows about the terminal.
+## Components
 
-Two objects sit behind the components: **Sampler** owns the metrics (it
-decides when the CPU history and the process table are refreshed) and
-**App** owns the UI state (which view, where the focus and the cursor are)
-and turns keys into changes to that state. Components read from App and draw;
-they never write back.
+| component | notes |
+| --- | --- |
+| `Label` | text, alignment, optional word wrap |
+| `Button` | focusable, emits `:press` on enter/space |
+| `Input` | single-line editor: cursor, horizontal scroll, placeholder, password mode |
+| `TextArea` | multi-line editor with its own viewport |
+| `Checkbox`, `RadioGroup` | toggle and single-choice inputs |
+| `List` | scrollable list with a cursor, `:change` / `:select` |
+| `Table` | columns, alignment, per-column formatters, sorting, scrolling, cursor |
+| `TabBar`, `Panes`, `Tabs` | tab strip, one-of-N container, and the two wired together |
+| `Form` | labelled fields, validation, `:submit` / `:invalid` |
+| `ProgressBar` | 0..1 meter painted from the shared colour ramp |
+| `Sparkline`, `BarChart` | one-row and block charts for a series of values |
 
-## Design notes
+```ruby
+table = TUI::Table.new(
+  columns: [
+    { key: :pid,  header: 'PID',  width: 8, align: :right },
+    { key: :name, header: 'NAME', width: TUI.flex(1) },
+    { key: :cpu,  header: 'CPU',  width: 7, align: :right,
+      format: ->(value) { format('%.1f', value) } }   # 1-arg formatters work
+  ],
+  rows: rows, sortable: true
+)
+table.on(:select) { |row| open(row) }
+table.sort_by(:cpu, :desc)      # the sort survives set_rows
+```
 
-**Cells, not strings.** A `Frame` is a grid of Unicode codepoints
-(`Integer`) plus a style id (`Integer`). Writing text is one `Array#[]=` splice
-for the characters and one `Array#fill` for the styles, and composing a row is
-a single `Array#pack('U*')` per equal-style run — no per-character string
-building. Wide characters claim two cells; the continuation cell holds a `NUL`
-placeholder that is stripped when the row is packed, so CJK text stays aligned.
+```ruby
+form = TUI::Form.new(label_width: 12)
+form.text(:name, 'Name', required: true)
+form.text(:mail, 'Email', validate: ->(v) { v.include?('@') || 'need an @' })
+form.toggle(:news, 'Newsletter')
+form.button('Save')
+form.on(:submit)  { |values| ... }
+form.on(:invalid) { |errors| ... }
+```
 
-**Only the delta goes to the terminal.** `Screen#present` compares each row it
-was asked to draw against the previous frame and emits a cursor move plus that
-row (with `EL` to erase the tail) only when it actually differs. Rows nobody
-drew on are skipped without being composed at all. A fully repainted 160x48
-frame is ~17 KB; a steady-state tick is ~100 bytes.
+## The runtime
 
-**Synchronized output.** Frames are wrapped in `ESC[?2026h … ESC[?2026l`,
-which tells supporting terminals to present the whole batch atomically.
-Without it you get tearing; with it, updates are invisible until they are
-complete.
+`TUI::App` owns the loop, the focus ring, global bindings and timers:
 
-**Font width.** `Term.codepoint_width` is a small wcwidth covering ASCII, box
-drawing, blocks, CJK and emoji. Zero-width marks are ignored (the app never
-draws them), so the one thing this TUI deliberately does not do is combine
-marks.
+```ruby
+app = TUI::App.new(root)
+app.on_key('q') { app.quit }        # printable keys
+app.on_key(:ctrl_c) { app.quit }
+app.on_key(:left) { sort(-1) }      # unhandled keys bubble up to here
+app.every(0.2) { refresh }          # the first run is immediate
+app.on_resize { |cols, rows| ... }
+app.run
+```
 
-**Lossless input.** `IO#getch` was a trap on Ruby 2.6: it re-toggles the
-terminal mode on each call and silently swallowed roughly every other
-keystroke (measured with a pty harness: 2 of 5 bytes arrived). `Term.read_key`
-therefore uses `IO.select` + `read_nonblock(1)` and assembles UTF-8
-continuation bytes itself. `test/render_test.rb` drives the real binary
-through a pty and asserts that every key lands, as a regression test.
+* `tab` / `shift-tab` move the focus through the visible focusable
+  components — unless the focused component consumes them (a form, say).
+* A component that becomes invisible (a switched pane) cannot keep the
+  focus: the next key re-homes it.
+* `App#render_frame` / `#render_lines` render without touching the terminal,
+  which is what the tests and the `--snapshot` modes use.
 
-**Always restore the terminal.** Interactive mode prints `ESC[?1049h` (the
-alternate screen) and hides the cursor, runs the app inside `$stdin.raw`, and
-restores everything from an `ensure` block — including on a crash.
+Behind it sit `TUI::Term` (raw mode, alternate screen, key reading) and
+`TUI::Screen` (the diffed renderer).
+
+## Theming
+
+Components ask for semantic style names, never for colours:
+
+```ruby
+TUI::Theme.style(:accent, fg: 170, bold: true)
+TUI::Style.define(:mine, fg: 250, bg: 236)
+canvas.put(x, y, '!', :mine)
+```
+
+`Style.ramp(t)` maps 0.0..1.0 onto the shared teal→green→amber→red ramp,
+which is what gauges and charts use. Named styles are turned into small
+integers once and stored per cell, so re-skinning costs nothing at render
+time.
+
+## How rendering works
+
+* A `Canvas` is a grid of codepoints (`Integer`) plus style ids (`Integer`).
+  Writing text is one `Array#[]=` splice for the characters and one
+  `Array#fill` for the styles; a row is composed with a single
+  `Array#pack('U*')` per equal-style run.
+* `Screen#present` compares every row it was asked to draw with the previous
+  frame and writes only what changed, wrapped in DEC mode 2026
+  (synchronized output) so a terminal shows updates atomically.
+* Wide characters (CJK, emoji) claim two cells, so columns stay aligned.
+* Clipping is part of the canvas: a component cannot paint outside its rect,
+  which is what makes viewports and nested layouts safe.
+* `Term.read_key` uses `IO.select` + `read_nonblock`, deliberately not
+  `IO#getch`: on Ruby 2.6 `getch` re-toggles the terminal mode on every call
+  and drops roughly every other keystroke (there is a pty regression test).
+
+## The example: `rtop`
+
+`examples/rtop/` is a complete application written with the toolkit: the
+dashboard is a `BarChart` and two `ProgressBar`s, the process view is a
+sortable `Table`, the sidebar is a vertical `TabBar` next to a `Panes`
+container, and everything is wrapped in a `Box`. It reads `/proc` directly
+and draws nothing by hand.
+
+```sh
+ruby bin/rtop                                    # interactive
+ruby bin/rtop --snapshot --w=120 --h=34          # one frame to stdout
+ruby bin/rtop --snapshot --view=procs            # dash | procs | help
+```
+
+`--snapshot` needs no tty, so it works over pipes and in CI.
 
 ## Performance
 
-Measured on this machine (Ruby 2.6.10, 160x48, dashboard with a full 512-sample
-CPU history and 45 process rows):
+Measured on this machine (Ruby 2.6.10), rendering the rtop dashboard at
+160x48 with a table of ~450 rows:
 
 | | |
 | --- | --- |
-| full frame build | ~3.6 ms (empty history) / ~8 ms (worst case) |
-| steady-state tick | ~8.5 ms including sampling; **~107 bytes** written |
-| process scan (460 procs) | once per second |
+| build a full frame | ~5 ms |
+| steady-state tick | ~170 **bytes** written per frame |
+| process scan (450 procs) | once per second |
 
-The render loop ticks at 10 Hz, so an idle rtop costs a few percent of one
-core. The two things worth knowing if you adapt this code: keep per-cell
-operations out of Ruby loops (splice and `pack` instead), and never repaint
-what did not change.
+Two rules keep it fast: keep per-cell work out of Ruby loops (splice and
+`pack` instead), and never repaint what did not change.
+
+## Repository layout
+
+```
+lib/tui.rb                  requires everything, installs the theme
+lib/tui/
+  geometry.rb               Rect + size specs
+  event.rb                  Key + event names
+  term.rb                   ANSI, size, raw mode, key reading
+  text.rb                   cell-aware string helpers (width, truncate, wrap)
+  style.rb                  style mechanism (SGR strings -> ids)
+  theme.rb                  the semantic style names components use
+  canvas.rb                 the cell grid, drawing primitives, clipping
+  screen.rb                 the diffed presenter
+  component.rb              the component base class
+  app.rb                    the runtime (loop, focus, keys, timers)
+  scroll.rb                 scrolling arithmetic shared by List/Table/TextArea
+  layout/                   Stack, Box, Center, Viewport, Spacer, Divider
+  components/               Label, Button, Input, TextArea, Checkbox,
+                            RadioGroup, List, Table, TabBar, Panes, Tabs,
+                            Form, ProgressBar, Sparkline, BarChart
+examples/hello.rb           a form in 40 lines
+examples/rtop/              the example application (sysdata, sampler, app)
+bin/rtop                    run the example without a load-path dance
+test/                       the test suite
+```
 
 ## Tests
 
@@ -178,13 +294,9 @@ what did not change.
 ruby test/run.rb
 ```
 
-68 tests with a ~60-line homegrown harness (stdlib only): character
-width, key-sequence parsing, frame drawing and clipping, wide-character
-handling, the dirty-row bookkeeping, the differential writer (it asserts the
-byte counts), `/proc` parsing, layout invariants for every view at several
-terminal sizes, key handling, and the end-to-end pty session above.
-
-`test/frame_equivalence_test.rb` encodes the contract that the fast frame
-implementation (integer cells, packed rows, dirty rows) renders byte-for-byte
-identically to a naive string-per-cell renderer. That comparison is what
-caught a NUL-placeholder leaking out of rows containing wide characters.
+The suite runs on a ~90-line homegrown harness (stdlib only): geometry and
+size distribution, canvas drawing/clipping/wide characters/row composition,
+the differential writer (asserting byte counts), every container, every
+component, focus traversal and key dispatch, layout invariants at five
+terminal sizes, and an end-to-end pty session that drives `bin/rtop` and
+asserts the terminal is restored.

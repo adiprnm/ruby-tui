@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# Run the example application: ruby bin/rtop [--snapshot] [--view=procs] ...
+
+require_relative '../examples/rtop/main'
+
+Rtop::CLI.run(ARGV)
