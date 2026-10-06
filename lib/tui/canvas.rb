@@ -291,21 +291,23 @@ module TUI
       stl = @styles[y]
       col = x
 
-      str.each_char do |ch|
-        wd = Term.codepoint_width(ch.ord)
-        next if wd.zero?
-        break if col > @clip.right
+      catch(:clip) do
+        str.split('').each do |ch|
+          wd = Term.codepoint_width(ch.ord)
+          next if wd.zero?
+          throw :clip if col > @clip.right
 
-        if col >= @clip.x && col + wd - 1 <= @clip.right
-          row[col] = ch.ord
-          stl[col] = sid
-          if wd == 2
-            row[col + 1] = NUL
-            stl[col + 1] = sid
-            @wide[y] = true
+          if col >= @clip.x && col + wd - 1 <= @clip.right
+            row[col] = ch.ord
+            stl[col] = sid
+            if wd == 2
+              row[col + 1] = NUL
+              stl[col + 1] = sid
+              @wide[y] = true
+            end
           end
+          col += wd
         end
-        col += wd
       end
       self
     end

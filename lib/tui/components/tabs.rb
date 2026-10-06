@@ -69,17 +69,19 @@ module TUI
 
     def render(canvas)
       offset = 0
-      @items.each_with_index do |item, index|
-        active = index == @active
-        rect = if horizontal?
-                 Rect.new(@rect.x + offset, @rect.y, Text.width(item) + 2, 1)
-               else
-                 Rect.new(@rect.x, @rect.y + index, @rect.w, 1)
-               end
-        break if rect.y > @rect.bottom || rect.x > @rect.right
+      catch(:full) do
+        @items.each_with_index do |item, index|
+          active = index == @active
+          rect = if horizontal?
+                   Rect.new(@rect.x + offset, @rect.y, Text.width(item) + 2, 1)
+                 else
+                   Rect.new(@rect.x, @rect.y + index, @rect.w, 1)
+                 end
+          throw :full if rect.y > @rect.bottom || rect.x > @rect.right
 
-        draw_item(canvas, rect, item, active)
-        offset += rect.w + @gap if horizontal?
+          draw_item(canvas, rect, item, active)
+          offset += rect.w + @gap if horizontal?
+        end
       end
       self
     end
@@ -88,10 +90,18 @@ module TUI
       # Only the axis this bar runs along; the other one stays available to
       # the application (a vertical tab bar must not eat left/right).
       case key.name
-      when :up    then horizontal? ? (return false) : select(@active - 1)
-      when :down  then horizontal? ? (return false) : select(@active + 1)
-      when :left  then horizontal? ? select(@active - 1) : (return false)
-      when :right then horizontal? ? select(@active + 1) : (return false)
+      when :up
+        return false if horizontal?
+        select(@active - 1)
+      when :down
+        return false if horizontal?
+        select(@active + 1)
+      when :left
+        return false unless horizontal?
+        select(@active - 1)
+      when :right
+        return false unless horizontal?
+        select(@active + 1)
       when :home  then select(0)
       when :end   then select(@items.length - 1)
       when :enter then emit(Events::SELECT, @items[@active], @active)

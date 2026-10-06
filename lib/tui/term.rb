@@ -80,20 +80,49 @@ module TUI
       end
 
       def text_width(str)
-        str.to_s.each_char.inject(0) { |acc, ch| acc + width(ch) }
+        total = 0
+        str.to_s.split('').each { |ch| total += width(ch) }
+        total
       end
 
       # --- session ------------------------------------------------------
 
       # Enter the alternate screen and raw mode. Yields, then restores the
       # terminal no matter what happens inside.
-      def session(output = $stdout, input = $stdin)
+      #
+      # Raw mode goes through `stty` rather than IO#raw: Spinel's io/console
+      # only implements IO#winsize, and IO#ioctl is not available either, so
+      # saving/restoring the tty via stty is the portable path.
+      def session(output = $stdout, _input = $stdin)
         output.print(ALT_ON + HIDE_CURSOR + CLEAR)
         output.flush
-        input.raw { yield }
-      ensure
-        output.print(SHOW_CURSOR + ALT_OFF + Style::RESET)
-        output.flush
+        saved = raw_mode_on
+        begin
+          yield
+        ensure
+          raw_mode_off(saved)
+          output.print(SHOW_CURSOR + ALT_OFF + Style::RESET)
+          output.flush
+        end
+        nil
+      end
+
+      # Switch the tty to raw mode. Returns the saved stty state, or nil when
+      # there is no tty (or no stty), in which case the session runs without
+      # raw mode instead of failing.
+      def raw_mode_on
+        saved = `stty -g 2>/dev/null`.to_s.strip
+        return nil if saved.empty?
+
+        system('stty raw -echo')
+        saved
+      end
+
+      def raw_mode_off(saved)
+        return if saved.nil?
+
+        system("stty #{saved}")
+        nil
       end
 
       # --- input --------------------------------------------------------
@@ -131,11 +160,13 @@ module TUI
         lead = bytes.getbyte(0)
         if lead && lead >= 0xC0
           need = lead < 0xE0 ? 1 : (lead < 0xF0 ? 2 : 3)
-          need.times do
-            break unless IO.select([$stdin], nil, nil, 0.01)
-            more = $stdin.read_nonblock(1)
-            break if more.nil?
-            bytes << more.force_encoding(Encoding::BINARY)
+          catch(:enough) do
+            need.times do
+              throw :enough unless IO.select([$stdin], nil, nil, 0.01)
+              more = $stdin.read_nonblock(1)
+              throw :enough if more.nil?
+              bytes << more.force_encoding(Encoding::BINARY)
+            end
           end
         end
 

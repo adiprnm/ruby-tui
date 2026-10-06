@@ -29,11 +29,13 @@ module TUI
 
         out = +''
         used = 0
-        str.each_char do |ch|
-          w = Term.width(ch)
-          break if used + w > width - 1
-          out << ch
-          used += w
+        catch(:truncated) do
+          str.split('').each do |ch|
+            w = Term.width(ch)
+            throw :truncated if used + w > width - 1
+            out << ch
+            used += w
+          end
         end
         out << ELLIPSIS
       end

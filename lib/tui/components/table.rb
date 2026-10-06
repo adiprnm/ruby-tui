@@ -143,10 +143,11 @@ module TUI
       draw_header(canvas, area) if @header
 
       rows_area = body_rect
-      visible_rows.times do |i|
+      visible = [visible_rows, @rows.length - @scroll].min
+      visible = 0 if visible.negative?
+      visible.times do |i|
         index = @scroll + i
         row = @rows[index]
-        break if row.nil?
 
         draw_row(canvas, rows_area, row, index, i)
       end

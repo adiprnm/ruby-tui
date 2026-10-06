@@ -30,9 +30,7 @@ module TUI
     def render(canvas)
       if @wrap
         lines = Text.wrap(@text, @rect.w)
-        lines.each_with_index do |line, i|
-          break if i >= @rect.h
-
+        lines.first(@rect.h).each_with_index do |line, i|
           canvas.text(@rect.with(y: @rect.y + i, h: 1), line, @style, @align)
         end
       else

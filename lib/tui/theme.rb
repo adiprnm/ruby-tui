@@ -104,9 +104,12 @@ module TUI
       danger: DARK[:danger], error: DARK[:error]
     }.freeze
 
-    class << self
-      THEMES = { dark: DARK, plain: PLAIN }.freeze
+    # Kept at module level, not inside `class << self`: Spinel resolves
+    # constants defined in a singleton class as nil, so the lookup below
+    # would see THEMES as nil.
+    THEMES = { dark: DARK, plain: PLAIN }.freeze
 
+    class << self
       # Install a theme. :dark is the default, :plain uses no colours at all.
       def install(name = :dark)
         name = name.to_sym if name.respond_to?(:to_sym)

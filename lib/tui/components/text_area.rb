@@ -54,7 +54,7 @@ module TUI
 
       area.h.times do |i|
         line = @buffer.lines[@scroll + i]
-        break if line.nil? && i > 0
+        next if line.nil? && i.positive?
 
         canvas.text(Rect.new(area.x, area.y + i, area.w, 1), line.to_s, @style)
       end

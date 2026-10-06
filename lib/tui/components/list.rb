@@ -66,10 +66,11 @@ module TUI
       @scroll = Scroll.ensure_visible(@scroll, @selected, rows)
       @scroll = Scroll.clamp(@scroll, @items.length, rows)
 
-      rows.times do |i|
+      visible = [rows, @items.length - @scroll].min
+      visible = 0 if visible.negative?
+      visible.times do |i|
         index = @scroll + i
         item = @items[index]
-        break if item.nil?
 
         row_rect = Rect.new(area.x, area.y + i, area.w, 1)
         style = @style

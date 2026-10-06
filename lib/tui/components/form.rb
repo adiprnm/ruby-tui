@@ -158,20 +158,22 @@ module TUI
       @rect = rect
       y = rect.y
 
-      @fields.each do |field|
-        break if y > rect.bottom
+      catch(:full) do
+        @fields.each do |field|
+          throw :full if y > rect.bottom
 
-        editor_rect = if field.button?
-                        Rect.new(rect.x, y, rect.w, 1)
-                      else
-                        Rect.new(rect.x + @label_width + 1, y,
-                                 [rect.w - @label_width - 1, 1].max, 1)
-                      end
-        field.editor.layout(editor_rect)
-        field.label_rect = Rect.new(rect.x, y, @label_width, 1) unless field.button?
-        field.error_rect = Rect.new(editor_rect.x, y + 1, editor_rect.w, 1) if field.error
+          editor_rect = if field.button?
+                          Rect.new(rect.x, y, rect.w, 1)
+                        else
+                          Rect.new(rect.x + @label_width + 1, y,
+                                   [rect.w - @label_width - 1, 1].max, 1)
+                        end
+          field.editor.layout(editor_rect)
+          field.label_rect = Rect.new(rect.x, y, @label_width, 1) unless field.button?
+          field.error_rect = Rect.new(editor_rect.x, y + 1, editor_rect.w, 1) if field.error
 
-        y += rows_for(field) + @gap
+          y += rows_for(field) + @gap
+        end
       end
       self
     end

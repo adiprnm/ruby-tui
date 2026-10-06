@@ -51,7 +51,13 @@ module TUI
     def eql?(other)
       other.is_a?(Key) && other.name == @name
     end
-    alias == eql?
+
+    # Written out rather than `alias == eql?`: Spinel does not emit the
+    # method body for an aliased `==`, leaving a dangling reference at link
+    # time. An explicit definition is equivalent on CRuby.
+    def ==(other)
+      eql?(other)
+    end
 
     def hash
       @name.hash

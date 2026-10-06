@@ -92,20 +92,22 @@ module TUI
 
     def render(canvas)
       offset = 0
-      @options.each_with_index do |option, index|
-        rect = if @orientation == :horizontal
-                 slot = slot_width(option)
-                 r = Rect.new(@rect.x + offset, @rect.y, slot - 2, 1)
-                 offset += slot
-                 r
-               else
-                 Rect.new(@rect.x, @rect.y + index, @rect.w, 1)
-               end
-        break if rect.y > @rect.bottom || rect.right > @rect.right
+      catch(:full) do
+        @options.each_with_index do |option, index|
+          rect = if @orientation == :horizontal
+                   slot = slot_width(option)
+                   r = Rect.new(@rect.x + offset, @rect.y, slot - 2, 1)
+                   offset += slot
+                   r
+                 else
+                   Rect.new(@rect.x, @rect.y + index, @rect.w, 1)
+                 end
+          throw :full if rect.y > @rect.bottom || rect.right > @rect.right
 
-        mark = index == @selected ? '(•)' : '( )'
-        style = focused? && index == @selected ? @focus_style : @style
-        canvas.text(rect, "#{mark} #{option}", style)
+          mark = index == @selected ? '(•)' : '( )'
+          style = focused? && index == @selected ? @focus_style : @style
+          canvas.text(rect, "#{mark} #{option}", style)
+        end
       end
       self
     end
