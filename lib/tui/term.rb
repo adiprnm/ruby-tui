@@ -85,6 +85,28 @@ module TUI
         total
       end
 
+      # Write to an output that may be $stdout or a StringIO. Spinel only
+      # lowers IO#print when the receiver is statically an IO, so route the
+      # real terminal through $stdout explicitly and fall back to the dynamic
+      # call (StringIO, a File, ...) otherwise.
+      def write(output, str)
+        if output.equal?($stdout)
+          $stdout.print(str)
+        else
+          output.print(str)
+        end
+        nil
+      end
+
+      def flush(output)
+        if output.equal?($stdout)
+          $stdout.flush
+        else
+          output.flush
+        end
+        nil
+      end
+
       # --- session ------------------------------------------------------
 
       # Enter the alternate screen and raw mode. Yields, then restores the
@@ -94,15 +116,15 @@ module TUI
       # only implements IO#winsize, and IO#ioctl is not available either, so
       # saving/restoring the tty via stty is the portable path.
       def session(output = $stdout, _input = $stdin)
-        output.print(ALT_ON + HIDE_CURSOR + CLEAR)
-        output.flush
+        write(output, ALT_ON + HIDE_CURSOR + CLEAR)
+        flush(output)
         saved = raw_mode_on
         begin
           yield
         ensure
           raw_mode_off(saved)
-          output.print(SHOW_CURSOR + ALT_OFF + Style::RESET)
-          output.flush
+          write(output, SHOW_CURSOR + ALT_OFF + Style::RESET)
+          flush(output)
         end
         nil
       end

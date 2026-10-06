@@ -34,7 +34,7 @@ module TUI
       @h = h
       @prev = []
       @canvas = nil
-      @out.print(Term::CLEAR)
+      Term.write(@out, Term::CLEAR)
       true
     end
 
@@ -63,8 +63,8 @@ module TUI
       end
 
       buf << Term::SYNC_OFF
-      @out.print(buf)
-      @out.flush
+      Term.write(@out, buf)
+      Term.flush(@out)
       canvas.presented!
       self
     end
