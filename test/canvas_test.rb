@@ -63,6 +63,35 @@ test 'styles are emitted per run and the row ends reset' do
   assert_equal 'aabb      ', plain(row)
 end
 
+test 'the border style clears the background of the run before it' do
+  c = canvas(6, 1)
+  c.fill(0, 0, 3, 1, ' ', :selection)
+  c.put(3, 0, '│', :border)
+
+  # Replay the row like a terminal: the filled cursor must not bleed its
+  # background into the border that follows it.
+  backgrounds = []
+  current = nil
+  c.row(0).scan(/\e\[([0-9;]*)m|(.)/) do |code, char|
+    if code
+      nums = code.split(';').reject(&:empty?).map(&:to_i)
+      i = 0
+      while i < nums.length
+        if nums[i].zero? || nums[i] == 49
+          current = nil
+        elsif nums[i] == 48 && nums[i + 1] == 5
+          current = nums[i + 2]
+          i += 2
+        end
+        i += 1
+      end
+    elsif char
+      backgrounds << current
+    end
+  end
+  assert_equal [237, 237, 237, nil], backgrounds.first(4)
+end
+
 puts 'Canvas -- clipping'
 
 test 'clip confines drawing to the rect' do

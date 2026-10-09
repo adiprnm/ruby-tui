@@ -17,8 +17,8 @@ module TUI
     ALT_ON      = "#{CSI}?1049h"
     ALT_OFF     = "#{CSI}?1049l"
     # DEC 2026: present everything between these as one atomic frame.
-    SYNC_ON     = "#{CSI}?2026h"
-    SYNC_OFF    = "#{CSI}?2026l"
+    SYNC_ON     = "#{CSI}?2026h".freeze
+    SYNC_OFF    = "#{CSI}?2026l".freeze
 
     ZERO_WIDTH = [0x0300..0x036F, 0x200B..0x200F, 0xFE00..0xFE0F].freeze
     WIDE = [

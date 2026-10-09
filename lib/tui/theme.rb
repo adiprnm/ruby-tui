@@ -53,8 +53,10 @@ module TUI
       error:         { fg: PALETTE[:bad], bold: true },
       hint:          { fg: PALETTE[:muted] },
 
-      border:        { fg: PALETTE[:border] },
-      border_focus:  { fg: PALETTE[:border_hi] },
+      # `bg: :default` lifts the terminal background back over the style, so
+      # a filled run just before the edge cannot bleed into the border.
+      border:        { fg: PALETTE[:border], bg: :default },
+      border_focus:  { fg: PALETTE[:border_hi], bg: :default },
       track:         { fg: PALETTE[:track] },
       grid:          { fg: PALETTE[:muted], dim: true },
       thumb:         { fg: PALETTE[:thumb] },
@@ -92,11 +94,11 @@ module TUI
     PLAIN = {
       text: {}, value: {}, field: {},
       title: { bold: true }, subtitle: { bold: true }, accent: { bold: true },
-      tab_active: { bold: true }, border_focus: { bold: true },
+      tab_active: { bold: true }, border_focus: { bold: true, bg: :default },
       thumb: { bold: true },
       muted: { dim: true }, dim: { dim: true }, hint: { dim: true },
       label: { dim: true }, header: { dim: true }, tab_inactive: { dim: true },
-      placeholder: { dim: true }, border: { dim: true }, track: { dim: true },
+      placeholder: { dim: true }, border: { dim: true, bg: :default }, track: { dim: true },
       cursor_placeholder: { underline: true },
       grid: { dim: true }, selection_dim: { reverse: true },
       selection: { reverse: true }, cursor: { reverse: true },

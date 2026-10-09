@@ -99,7 +99,11 @@ module TUI
         codes << '4' if opts[:underline]
         codes << '7' if opts[:reverse]
         codes << "38;5;#{opts[:fg]}" if opts[:fg]
-        codes << "48;5;#{opts[:bg]}" if opts[:bg]
+        codes << "48;5;#{opts[:bg]}" if opts[:bg].is_a?(Integer)
+        # `bg: :default` paints the terminal's own background back on, which
+        # keeps a filled run from bleeding into a chrome run that follows it
+        # (see the border style).
+        codes << '49' if opts[:bg] == :default
         codes.empty? ? RESET : "\e[#{codes.join(';')}m"
       end
     end
