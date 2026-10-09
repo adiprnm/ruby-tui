@@ -88,8 +88,8 @@ module TUI
 
     def handle_key(key)
       case key.name
-      when :up        then select(@selected - 1)
-      when :down      then select(@selected + 1)
+      when :up, 'k'   then select(@selected - 1)
+      when :down, 'j' then select(@selected + 1)
       when :home      then select(0)
       when :end       then select(@items.length - 1)
       when :page_up   then select(@selected - content_rect.h)

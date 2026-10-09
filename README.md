@@ -231,6 +231,10 @@ stack.add(table, size: TUI.flex(1))        # ...and the table takes the rest
 | `ProgressBar` | 0..1 meter painted from the shared colour ramp |
 | `Sparkline`, `BarChart` | one-row and block charts for a series of values |
 
+`List` and `Table` move their cursor with the arrow keys or `j` / `k`
+(`home` / `end` and `page-up` / `page-down` jump further); they emit
+`:change` as the cursor moves and `:select` on enter.
+
 ```ruby
 table = TUI::Table.new(
   columns: [

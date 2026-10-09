@@ -227,6 +227,16 @@ test 'list navigates and emits change and select' do
   assert_equal [['c', 2]], selected
 end
 
+test 'list navigates with j and k too' do
+  list = TUI::List.new(items: %w[a b c], padding: 0)
+  press(list, 'j', 'j')
+  assert_equal 'b', list.selected_item, 'j moves down one row'
+  press(list, 'k', 'k')
+  assert_equal 'a', list.selected_item, 'k moves back up'
+  press(list, 'k', 'k')
+  assert_equal 'a', list.selected_item, 'the top of the list is a hard stop'
+end
+
 test 'list scrolls to keep the cursor visible' do
   list = TUI::List.new(items: (1..20).map(&:to_s), padding: 0)
   render_lines(list, 10, 4)
@@ -279,6 +289,16 @@ test 'table keeps the cursor in range' do
   assert_equal 1, table.selected
   press(table, :home)
   assert_equal 0, table.selected
+end
+
+test 'table navigates with j and k too' do
+  table = sample_table
+  press(table, 'j', 'j')
+  assert_equal 1, table.selected, 'j moves down one row'
+  press(table, 'j', 'j')
+  assert_equal 1, table.selected, 'the last row is a hard stop'
+  press(table, 'k', 'k')
+  assert_equal 0, table.selected, 'k moves back up'
 end
 
 test 'table emits select and change' do
