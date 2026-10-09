@@ -20,6 +20,7 @@ module TUI
   class Canvas
     SPACE = 32
     NUL   = 0     # placeholder cell after a double-width character
+    OSC8_CLOSE = "\e]8;;\e\\"
 
     attr_reader :w, :h
 
@@ -28,10 +29,14 @@ module TUI
       @h = h
       @chars   = Array.new(h) { Array.new(w, SPACE) }
       @styles  = Array.new(h) { Array.new(w, 0) }
+      @links   = Array.new(h) { Array.new(w, 0) }   # 0 = no hyperlink
       @wide    = Array.new(h, false)
       @dirty   = Array.new(h, true)
       @touched = Array.new(h, false)
       @flat    = Array.new(h, 0)
+      @has_links = Array.new(h, false)
+      @link_urls = []
+      @link_ids  = {}
       @clip      = Rect.new(0, 0, w, h)
       @clip_full = true
     end
@@ -76,6 +81,7 @@ module TUI
       mark_style(y, sid, false)
       row = @chars[y]
       stl = @styles[y]
+      lrow = @links[y]
 
       if str.length == 1
         cp = str.ord
@@ -83,16 +89,40 @@ module TUI
         if wd == 1 && x >= @clip.x && x <= @clip.right
           row[x] = cp
           stl[x] = sid
+          lrow[x] = 0
           return self
         end
       elsif str.ascii_only? && x >= @clip.x && x + str.length <= @clip.right + 1
         n = str.length
         row[x, n] = str.bytes
         stl.fill(sid, x, n)
+        lrow.fill(0, x, n)
         return self
       end
 
       put_character_by_character(x, y, str, sid)
+    end
+
+    # Tag cells [x, x+width) on row y as a terminal hyperlink (OSC 8). The
+    # terminal decides how a click opens it; the canvas only carries the URL.
+    # Control characters are stripped so a hostile message cannot inject
+    # escape sequences.
+    def link(x, y, width, url)
+      return self if url.nil? || width <= 0 || x >= @w
+      return self if y < 0 || y >= @h
+
+      url = url.to_s.gsub(/[\x00-\x1f\x7f]/, '')
+      return self if url.empty?
+
+      id = link_id(url)
+      lrow = @links[y]
+      from = [x, 0].max
+      to = [x + width - 1, @w - 1].min
+      from.upto(to) { |col| lrow[col] = id }
+      @has_links[y] = true
+      @dirty[y] = true
+      @touched[y] = true
+      self
     end
 
     def fill(x, y, w, h, ch = ' ', style = nil)
@@ -105,6 +135,7 @@ module TUI
       region.y.upto(region.bottom) do |row_y|
         @chars[row_y].fill(cp, region.x, region.w)
         @styles[row_y].fill(sid, region.x, region.w)
+        @links[row_y].fill(0, region.x, region.w)
         @dirty[row_y] = true
         @touched[row_y] = true
         mark_style(row_y, sid, region.x.zero? && region.w == @w)
@@ -207,27 +238,37 @@ module TUI
       chars = @chars[y]
       out = +''
 
-      # The common case: one style across the whole row -> one pack call.
-      if @flat[y] >= 0
+      # The common case: one style across the whole row and no hyperlinks ->
+      # one pack call.
+      if @flat[y] >= 0 && !@has_links[y]
         out << Style.sgr(@flat[y]) << chars.pack('U*') << Style::RESET
         out.delete!(NUL.chr) if @wide[y]
         return out
       end
 
       styles = @styles[y]
+      links = @links[y]
+      linked = @has_links[y]
       x = 0
       cur = -1
+      cur_link = 0
       while x < @w
         sid = styles[x]
+        lid = linked ? links[x] : 0
         start = x
         x += 1
-        x += 1 while x < @w && styles[x] == sid
+        x += 1 while x < @w && styles[x] == sid && (!linked || links[x] == lid)
 
         out << Style.sgr(sid) if sid != cur
         cur = sid
+        if lid != cur_link
+          out << (lid.zero? ? OSC8_CLOSE : osc8_open(@link_urls[lid - 1]))
+          cur_link = lid
+        end
         out << chars[start, x - start].pack('U*')
       end
 
+      out << OSC8_CLOSE if cur_link != 0
       out << Style::RESET
       out.delete!(NUL.chr) if @wide[y]
       out
@@ -245,6 +286,8 @@ module TUI
         if @touched[y]
           @chars[y].fill(SPACE)
           @styles[y].fill(0)
+          @links[y].fill(0)
+          @has_links[y] = false
           @wide[y] = false
           @dirty[y] = true
           @flat[y] = 0
@@ -265,6 +308,17 @@ module TUI
     end
 
     private
+
+    def osc8_open(url)
+      "\e]8;;#{url}\e\\"
+    end
+
+    def link_id(url)
+      @link_ids[url] ||= begin
+        @link_urls << url
+        @link_urls.length
+      end
+    end
 
     def blank?(ch)
       ch.nil? || ch.to_s.empty?
@@ -300,9 +354,11 @@ module TUI
           if col >= @clip.x && col + wd - 1 <= @clip.right
             row[col] = ch.ord
             stl[col] = sid
+            @links[y][col] = 0
             if wd == 2
               row[col + 1] = NUL
               stl[col + 1] = sid
+              @links[y][col + 1] = 0
               @wide[y] = true
             end
           end

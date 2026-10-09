@@ -176,3 +176,25 @@ test 'wrap breaks on words' do
   assert_equal ['one two', 'three'], TUI::Text.wrap('one two three', 8)
   assert_equal ['a', '', 'b'], TUI::Text.wrap("a\n\nb", 10)
 end
+
+test 'canvas emits OSC 8 hyperlinks' do
+  canvas = TUI::Canvas.new(20, 1)
+  canvas.put(0, 0, 'lihat situs', :text)
+  canvas.link(6, 0, 5, 'https://x.test/1')
+  row = canvas.row(0)
+  assert_includes row, "\e]8;;https://x.test/1\e\\"
+  assert_includes row, "\e]8;;\e\\"
+end
+
+test 'canvas strips control characters from a hyperlink' do
+  canvas = TUI::Canvas.new(8, 1)
+  canvas.put(0, 0, 'x', :text)
+  canvas.link(0, 0, 1, "https://a.test/\e]8;;evil")
+  refute canvas.row(0).include?("\e]8;;evil")
+end
+
+test 'a canvas without links carries no OSC 8' do
+  canvas = TUI::Canvas.new(5, 1)
+  canvas.put(0, 0, 'halo', :text)
+  refute canvas.row(0).include?(']8;;')
+end
